@@ -62,8 +62,30 @@ function renderCurrentView() {
 }
 
 // =====================
-// STATS
+// STATS HELPERS
+// Svaka pozicija može biti lista igrača (solo=[id], par=[id1,id2], trio=[id1,id2,id3])
+// game.positions = [ {players:[id,...], place:1}, {players:[id,...], place:2}, ... ]
+// Backwards compat: stari format game.p1/p2/p3/drek se konvertira
 // =====================
+function normalizeGame(game) {
+  if (game.positions) return game;
+  // stari format -> novi
+  const pos = [];
+  if (game.p1) pos.push({ players: [game.p1], place: 1 });
+  if (game.p2) pos.push({ players: [game.p2], place: 2 });
+  if (game.p3) pos.push({ players: [game.p3], place: 3 });
+  if (game.drek) pos.push({ players: [game.drek], place: 4, muhe: game.muhe || 0 });
+  return { positions: pos };
+}
+
+function getPlayerPlaceInGame(playerId, game) {
+  const g = normalizeGame(game);
+  for (const pos of g.positions) {
+    if (pos.players.includes(playerId)) return { place: pos.place, muhe: pos.muhe || 0 };
+  }
+  return null;
+}
+
 function computePlayerStats(playerId) {
   const s = { partije: 0, bodovi: 0, p1: 0, p2: 0, p3: 0, drekovi: 0, muhe: 0, kola: 0, propustena: 0, plasmani: [] };
   const kolaSet = new Set();
@@ -71,19 +93,14 @@ function computePlayerStats(playerId) {
     let playedThisRound = false;
     for (const game of round.games) {
       if (!game) continue;
-      let place = null, m = 0;
-      if (game.p1 === playerId) place = 1;
-      else if (game.p2 === playerId) place = 2;
-      else if (game.p3 === playerId) place = 3;
-      else if (game.drek === playerId) { place = 4; m = game.muhe || 0; }
-      if (place !== null) {
-        s.partije++;
-        s.bodovi += place;
-        if (place === 1) s.p1++;
-        else if (place === 2) s.p2++;
-        else if (place === 3) s.p3++;
-        else { s.drekovi++; s.muhe += m; }
-        s.plasmani.push(place);
+      const result = getPlayerPlaceInGame(playerId, game);
+      if (result !== null) {
+        s.partije++; s.bodovi += result.place;
+        if (result.place === 1) s.p1++;
+        else if (result.place === 2) s.p2++;
+        else if (result.place === 3) s.p3++;
+        else { s.drekovi++; s.muhe += result.muhe; }
+        s.plasmani.push(result.place);
         playedThisRound = true;
       }
     }
@@ -91,37 +108,12 @@ function computePlayerStats(playerId) {
   }
   s.kola = kolaSet.size;
   s.propustena = state.rounds.length - s.kola;
-  // REZ = prosjek bodova + kazna za propuštena kola
-  const prosjek = s.partije > 0 ? (s.bodovi / s.partije) : 0;
-  s.kazna = s.propustena * 1;
+  s.kazna = s.propustena;
+  const prosjek = s.partije > 0 ? s.bodovi / s.partije : 0;
   s.rez = s.partije > 0 ? prosjek + s.kazna : null;
-  s.rezBezKazne = s.partije > 0 ? prosjek : null;
   const totalPossible = state.rounds.length * 4;
   s.pct = totalPossible > 0 ? Math.round((s.partije / totalPossible) * 100) : 0;
   return s;
-}
-
-// REZ za jedno kolo (bez kazne)
-function computeRoundStats(playerId, round) {
-  let bodovi = 0, partije = 0, p1 = 0, p2 = 0, p3 = 0, drekovi = 0, muhe = 0, played = false;
-  for (const game of round.games) {
-    if (!game) continue;
-    let place = null, m = 0;
-    if (game.p1 === playerId) place = 1;
-    else if (game.p2 === playerId) place = 2;
-    else if (game.p3 === playerId) place = 3;
-    else if (game.drek === playerId) { place = 4; m = game.muhe || 0; }
-    if (place !== null) {
-      bodovi += place; partije++;
-      if (place === 1) p1++;
-      else if (place === 2) p2++;
-      else if (place === 3) p3++;
-      else { drekovi++; muhe += m; }
-      played = true;
-    }
-  }
-  const rez = partije > 0 ? bodovi / partije : null;
-  return { bodovi, partije, p1, p2, p3, drekovi, muhe, rez, played };
 }
 
 function getTitle(stats) {
@@ -140,21 +132,6 @@ function sortedPlayers() {
       if (as.partije === 0 && bs.partije === 0) return 0;
       if (as.partije === 0) return 1;
       if (bs.partije === 0) return -1;
-      if (as.rez !== bs.rez) return as.rez - bs.rez;
-      if (as.p1 !== bs.p1) return bs.p1 - as.p1;
-      if (as.drekovi !== bs.drekovi) return as.drekovi - bs.drekovi;
-      if (as.muhe !== bs.muhe) return as.muhe - bs.muhe;
-      return bs.partije - as.partije;
-    });
-}
-
-function sortedPlayersByRound(round) {
-  return [...state.players].map(p => ({ ...p, rs: computeRoundStats(p.id, round) }))
-    .sort((a, b) => {
-      const as = a.rs, bs = b.rs;
-      if (!as.played && !bs.played) return 0;
-      if (!as.played) return 1;
-      if (!bs.played) return -1;
       if (as.rez !== bs.rez) return as.rez - bs.rez;
       if (as.p1 !== bs.p1) return bs.p1 - as.p1;
       if (as.drekovi !== bs.drekovi) return as.drekovi - bs.drekovi;
@@ -219,10 +196,8 @@ function renderTable() {
       let place = null;
       for (const game of round.games) {
         if (!game) continue;
-        if (game.p1 === p.id) { place = 1; break; }
-        if (game.p2 === p.id) { place = 2; break; }
-        if (game.p3 === p.id) { place = 3; break; }
-        if (game.drek === p.id) { place = 4; break; }
+        const r = getPlayerPlaceInGame(p.id, game);
+        if (r) { place = r.place; break; }
       }
       if (place === 1) histCells += `<td class="hist-cell hist-1">1</td>`;
       else if (place === 2) histCells += `<td class="hist-cell hist-2">2</td>`;
@@ -231,7 +206,9 @@ function renderTable() {
       else histCells += `<td class="hist-cell hist-empty" title="Nije došao">&#129340;</td>`;
     });
 
-    const kaznaStr = s.kazna > 0 ? `<span style="color:var(--ghost-red);">+${s.kazna.toFixed(2)}</span>` : `<span style="color:var(--text-dim);">—</span>`;
+    const kaznaStr = s.kazna > 0
+      ? `<span style="color:var(--ghost-red);">+${s.kazna.toFixed(2)}</span>`
+      : `<span style="color:var(--text-dim);">—</span>`;
 
     const tr = document.createElement('tr');
     tr.dataset.playerId = p.id;
@@ -239,10 +216,7 @@ function renderTable() {
     tr.innerHTML = `
       <td class="col-rank sticky-col"><span class="rank-badge rank-${rank <= 3 ? rank : 'other'}">${rank}</span></td>
       <td class="col-name sticky-col2">
-        <div class="player-name-cell">
-          <span class="player-dot ${p.color}"></span>
-          <span>${escHtml(p.name)}</span>
-        </div>
+        <div class="player-name-cell"><span>${escHtml(p.name)}</span></div>
       </td>
       <td class="col-title"><span class="title-badge">${getTitle(s)}</span></td>
       <td class="col-num">${state.rounds.length}</td>
@@ -280,7 +254,7 @@ function rebuildHistoryHeaders() {
 }
 
 // =====================
-// TABLICA PO KOLIMA (jednostavna)
+// TABLICA PO KOLIMA
 // =====================
 function renderKola() {
   const wrap = document.getElementById('kolaTablesWrap');
@@ -302,35 +276,64 @@ function renderKola() {
     const section = document.createElement('div');
     section.className = 'kolo-tablica-wrap';
 
-    // Izgradi header — P1 P2 P3 P4 + Muhe
+    // Header stupci P1..P4 + muhe
     let headerCells = `
       <th class="col-rank sticky-col">#</th>
-      <th class="col-name sticky-col2">Igrač</th>`;
+      <th class="col-name sticky-col2">Igrač / Skupina</th>`;
     round.games.forEach((_, gi) => {
       headerCells += `<th class="col-num">P${gi + 1}</th>`;
     });
-    headerCells += `<th class="col-num" title="Muhe">\uD83E\uDEB0</th>`;
+    headerCells += `<th class="col-num">\uD83E\uDEB0</th>`;
 
-    // Redovi po igračima
-    let rows = '';
-    state.players.forEach((p, idx) => {
-      const plasmani = [];
-      let ukupnoMuhe = 0;
-      let played = false;
+    // Skupi sve pozicije — jedna pozicija = jedan red (može biti 1, 2 ili 3 igrača)
+    // Prikaži po pozicijama, sortirano po REZ-u
+    const positionRows = [];
 
-      round.games.forEach((game) => {
-        if (!game) { plasmani.push(null); return; }
-        if (game.p1 === p.id) { plasmani.push(1); played = true; }
-        else if (game.p2 === p.id) { plasmani.push(2); played = true; }
-        else if (game.p3 === p.id) { plasmani.push(3); played = true; }
-        else if (game.drek === p.id) { plasmani.push(4); ukupnoMuhe += game.muhe || 0; played = true; }
-        else plasmani.push(null);
+    // Skupi jedinstvene pozicije iz svih 4 partije
+    // Redosljed: isti set igrača = isti red
+    const positionMap = new Map(); // key = sorted player ids joined
+
+    round.games.forEach((game, gi) => {
+      if (!game) return;
+      const g = normalizeGame(game);
+      g.positions.forEach(pos => {
+        const key = [...pos.players].sort().join(',');
+        if (!positionMap.has(key)) {
+          positionMap.set(key, { players: pos.players, plasmani: new Array(4).fill(null), muhe: 0 });
+        }
+        const row = positionMap.get(key);
+        row.plasmani[gi] = pos.place;
+        if (pos.place === 4) row.muhe += pos.muhe || 0;
       });
+    });
 
-      if (!played) return; // preskoči igrače koji nisu bili
+    // Izračunaj bodove i sortiraj
+    const rows_data = [...positionMap.values()].map(row => {
+      const bodovi = row.plasmani.filter(p => p !== null).reduce((a, b) => a + b, 0);
+      const partije = row.plasmani.filter(p => p !== null).length;
+      const rez = partije > 0 ? bodovi / partije : null;
+      return { ...row, bodovi, partije, rez };
+    }).sort((a, b) => {
+      if (a.rez === null && b.rez === null) return 0;
+      if (a.rez === null) return 1;
+      if (b.rez === null) return -1;
+      return a.rez - b.rez;
+    });
 
+    let rows = '';
+    rows_data.forEach((row, idx) => {
+      const rank = idx + 1;
+      const rezClass = row.rez !== null ? (row.rez <= 2 ? 'rez-good' : row.rez <= 3 ? 'rez-mid' : 'rez-bad') : '';
+
+      // Ime(na) igrača
+      const names = row.players.map(id => {
+        const p = state.players.find(x => x.id === id);
+        return p ? escHtml(p.name) : '?';
+      }).join(' + ');
+
+      // Ćelije plasmana
       let cells = '';
-      plasmani.forEach(place => {
+      row.plasmani.forEach(place => {
         if (place === 1) cells += `<td class="hist-cell hist-1" style="font-size:1.1rem;font-weight:700;">1</td>`;
         else if (place === 2) cells += `<td class="hist-cell hist-2" style="font-size:1.1rem;">2</td>`;
         else if (place === 3) cells += `<td class="hist-cell hist-3" style="font-size:1.1rem;">3</td>`;
@@ -338,25 +341,18 @@ function renderKola() {
         else cells += `<td class="hist-cell hist-empty">—</td>`;
       });
 
-      const muheStr = ukupnoMuhe > 0
-        ? `<span style="color:var(--ghost-red);font-weight:700;">${ukupnoMuhe}</span>`
+      const muheStr = row.muhe > 0
+        ? `<span style="color:var(--ghost-red);font-weight:700;">${row.muhe}</span>`
         : `<span style="color:var(--text-dim);">0</span>`;
 
       rows += `
         <tr>
-          <td class="col-rank sticky-col"><span class="rank-badge rank-other">${idx + 1}</span></td>
-          <td class="col-name sticky-col2">
-            <div class="player-name-cell">
-              <span class="player-dot ${p.color}"></span>
-              <span>${escHtml(p.name)}</span>
-            </div>
-          </td>
+          <td class="col-rank sticky-col"><span class="rank-badge rank-${rank <= 3 ? rank : 'other'}">${rank}</span></td>
+          <td class="col-name sticky-col2"><div class="player-name-cell"><span>${names}</span></div></td>
           ${cells}
           <td class="col-num">${muheStr}</td>
         </tr>`;
     });
-
-
 
     section.innerHTML = `
       <div class="kolo-tablica-header">
@@ -370,8 +366,7 @@ function renderKola() {
             <tbody>${rows}</tbody>
           </table>
         </div>
-      </div>
-    `;
+      </div>`;
     wrap.appendChild(section);
   });
 }
@@ -402,48 +397,128 @@ function buildPartijaCard(num) {
   const card = document.createElement('div');
   card.className = 'partija-card';
   card.id = `partija-${num}`;
-  const opts = state.players.map(p => `<option value="${p.id}">${escHtml(p.name)}</option>`).join('');
-  const emptyOpt = `<option value="">-- odaberi --</option>`;
+
+  // 4 pozicije, svaka s dropdown za tip (solo/par/trio) i playerima
+  let positionsHtml = '';
+  const posColors = ['var(--color-red)', 'var(--color-blue)', 'var(--color-green)', 'var(--color-yellow)'];
+  const posNames = ['Crvena', 'Plava', 'Zelena', 'Žuta'];
+
+  for (let pos = 0; pos < 4; pos++) {
+    const playerOpts = state.players.map(p =>
+      `<option value="${p.id}">${escHtml(p.name)}</option>`
+    ).join('');
+    const emptyOpt = `<option value="">-- odaberi --</option>`;
+
+    positionsHtml += `
+      <div class="position-block" id="pos-${num}-${pos}" style="border-left: 3px solid ${posColors[pos]};padding-left:10px;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+          <span style="font-size:.7rem;font-family:var(--font-display);color:${posColors[pos]};">${posNames[pos]}</span>
+          <select class="form-input pos-type" data-partija="${num}" data-pos="${pos}" style="width:auto;padding:4px 8px;font-size:.8rem;" onchange="updatePositionInputs(${num}, ${pos})">
+            <option value="solo">Solo</option>
+            <option value="par">Par</option>
+            <option value="trio">Trio</option>
+          </select>
+          <select class="form-input pos-place" data-partija="${num}" data-pos="${pos}" style="width:auto;padding:4px 8px;font-size:.8rem;">
+            <option value="1">🥇 1. mjesto</option>
+            <option value="2">🥈 2. mjesto</option>
+            <option value="3">🥉 3. mjesto</option>
+            <option value="4">💩 Drek</option>
+          </select>
+        </div>
+        <div class="pos-players" id="pos-players-${num}-${pos}">
+          <select class="form-input pos-player-1" data-partija="${num}" data-pos="${pos}" style="margin-bottom:4px;">${emptyOpt}${playerOpts}</select>
+        </div>
+        <div class="pos-muhe-row" id="pos-muhe-${num}-${pos}" style="display:none;margin-top:4px;">
+          <label style="font-size:.72rem;color:var(--text-secondary);">🪰 Muhe: </label>
+          <select class="form-input pos-muhe" data-partija="${num}" data-pos="${pos}" style="width:auto;padding:4px 8px;font-size:.8rem;">
+            ${[0,1,2,3,4].map(v=>`<option value="${v}">${v}</option>`).join('')}
+          </select>
+        </div>
+      </div>`;
+  }
+
   card.innerHTML = `
     <div class="partija-header"><span class="partija-num">PARTIJA ${num}</span></div>
-    <div class="partija-grid">
-      <div class="form-group"><label>🥇 1. mjesto</label>
-        <select class="form-input sel-p1" data-partija="${num}">${emptyOpt}${opts}</select></div>
-      <div class="form-group"><label>🥈 2. mjesto</label>
-        <select class="form-input sel-p2" data-partija="${num}">${emptyOpt}${opts}</select></div>
-      <div class="form-group"><label>🥉 3. mjesto</label>
-        <select class="form-input sel-p3" data-partija="${num}">${emptyOpt}${opts}</select></div>
-      <div class="form-group"><label>💩 Drek (zadnji)</label>
-        <select class="form-input sel-drek" data-partija="${num}">${emptyOpt}${opts}</select></div>
-      <div class="partija-drek-row">
-        <div class="form-group" style="margin:0"><label>🪰 Broj muha</label>
-          <select class="form-input sel-muhe" data-partija="${num}">
-            <option value="0">0 muha</option><option value="1">1 muha</option>
-            <option value="2">2 muhe</option><option value="3">3 muhe</option>
-            <option value="4">4 muhe</option>
-          </select></div>
-      </div>
-    </div>`;
+    <div style="padding:4px 0;">${positionsHtml}</div>`;
+
+  // Inicijaliziraj place dropdowne da ne budu isti
+  setTimeout(() => {
+    const places = card.querySelectorAll('.pos-place');
+    places[0].value = '1';
+    places[1].value = '2';
+    places[2].value = '3';
+    places[3].value = '4';
+    // Pokaži muhe za pos 3 (drek) odmah
+    updatePositionInputs(num, 3);
+  }, 0);
+
   return card;
+}
+
+function updatePositionInputs(partijaNum, posIdx) {
+  const type = document.querySelector(`.pos-type[data-partija="${partijaNum}"][data-pos="${posIdx}"]`).value;
+  const place = document.querySelector(`.pos-place[data-partija="${partijaNum}"][data-pos="${posIdx}"]`).value;
+  const playersContainer = document.getElementById(`pos-players-${partijaNum}-${posIdx}`);
+  const muheRow = document.getElementById(`pos-muhe-${partijaNum}-${posIdx}`);
+
+  const playerOpts = state.players.map(p => `<option value="${p.id}">${escHtml(p.name)}</option>`).join('');
+  const emptyOpt = `<option value="">-- odaberi --</option>`;
+
+  const count = type === 'solo' ? 1 : type === 'par' ? 2 : 3;
+  let html = '';
+  for (let i = 1; i <= count; i++) {
+    html += `<select class="form-input pos-player-${i}" data-partija="${partijaNum}" data-pos="${posIdx}" style="margin-bottom:4px;">${emptyOpt}${playerOpts}</select>`;
+  }
+  playersContainer.innerHTML = html;
+
+  // Muhe samo za drek
+  muheRow.style.display = place === '4' ? 'block' : 'none';
 }
 
 function collectRoundData() {
   const date = document.getElementById('newRoundDate').value;
   const name = document.getElementById('newRoundName').value.trim();
   const games = [], errors = [];
+
   for (let i = 1; i <= 4; i++) {
     const card = document.getElementById(`partija-${i}`);
     if (!card) continue;
-    const p1 = card.querySelector('.sel-p1').value;
-    const p2 = card.querySelector('.sel-p2').value;
-    const p3 = card.querySelector('.sel-p3').value;
-    const drek = card.querySelector('.sel-drek').value;
-    const muhe = parseInt(card.querySelector('.sel-muhe').value) || 0;
-    if (!p1 || !p2 || !p3 || !drek) { errors.push(`Partija ${i}: popuni sva mjesta`); continue; }
-    if (new Set([p1,p2,p3,drek]).size !== 4) { errors.push(`Partija ${i}: isti igrač na više mjesta`); continue; }
-    games.push({ p1, p2, p3, drek, muhe });
+
+    const positions = [];
+    const allPlayerIds = [];
+    let valid = true;
+
+    for (let pos = 0; pos < 4; pos++) {
+      const type = card.querySelector(`.pos-type[data-pos="${pos}"]`).value;
+      const place = parseInt(card.querySelector(`.pos-place[data-pos="${pos}"]`).value);
+      const muhe = parseInt(card.querySelector(`.pos-muhe[data-pos="${pos}"]`)?.value || 0);
+      const count = type === 'solo' ? 1 : type === 'par' ? 2 : 3;
+
+      const players = [];
+      for (let pi = 1; pi <= count; pi++) {
+        const sel = card.querySelector(`.pos-player-${pi}[data-pos="${pos}"]`);
+        if (!sel || !sel.value) { errors.push(`Partija ${i}, pozicija ${pos+1}: odaberi igrača`); valid = false; break; }
+        if (allPlayerIds.includes(sel.value)) { errors.push(`Partija ${i}: isti igrač na više pozicija`); valid = false; break; }
+        allPlayerIds.push(sel.value);
+        players.push(sel.value);
+      }
+      if (!valid) break;
+      positions.push({ players, place, muhe: place === 4 ? muhe : 0 });
+    }
+
+    if (!valid) continue;
+
+    // Provjeri da su sva 4 mjesta popunjena (1,2,3,4)
+    const places = positions.map(p => p.place).sort();
+    if (JSON.stringify(places) !== JSON.stringify([1,2,3,4])) {
+      errors.push(`Partija ${i}: mjesta moraju biti 1, 2, 3 i 4`); continue;
+    }
+
+    games.push({ positions });
   }
-  if (games.length !== 4) return { ok: false, errors };
+
+  if (errors.length > 0) return { ok: false, errors };
+  if (games.length !== 4) return { ok: false, errors: ['Popuni sve partije'] };
   return { ok: true, round: { id: Date.now().toString(), date, name, games } };
 }
 
@@ -466,24 +541,30 @@ function renderPovijest() {
     card.className = 'kolo-card';
     const fmtDate = round.date ? formatDate(round.date) : '';
     const roundName = round.name || `Kolo ${realIdx + 1}`;
+
     let gamesHtml = '';
     round.games.forEach((game, gi) => {
-      const getN = id => { const p = state.players.find(x => x.id === id); return p ? escHtml(p.name) : '?'; };
-      gamesHtml += `
-        <div class="partija-result">
-          <div class="partija-result-title">PARTIJA ${gi + 1}</div>
-          <div class="result-row"><span class="result-place">🥇</span><span class="result-name">${getN(game.p1)}</span></div>
-          <div class="result-row"><span class="result-place">🥈</span><span class="result-name">${getN(game.p2)}</span></div>
-          <div class="result-row"><span class="result-place">🥉</span><span class="result-name">${getN(game.p3)}</span></div>
-          <div class="result-row"><span class="result-place">💩</span><span class="result-name">${getN(game.drek)}</span>
-            <span class="result-muhe">${game.muhe > 0 ? `🪰 ${game.muhe}` : ''}</span></div>
-        </div>`;
+      if (!game) return;
+      const g = normalizeGame(game);
+      const sorted = [...g.positions].sort((a, b) => a.place - b.place);
+      const placeIcons = ['🥇', '🥈', '🥉', '💩'];
+      let posHtml = '';
+      sorted.forEach(pos => {
+        const names = pos.players.map(id => {
+          const p = state.players.find(x => x.id === id);
+          return p ? escHtml(p.name) : '?';
+        }).join(' + ');
+        const icon = placeIcons[pos.place - 1] || '';
+        const muheStr = pos.place === 4 && pos.muhe > 0 ? ` <span style="color:var(--text-secondary);font-size:.75rem;">🪰${pos.muhe}</span>` : '';
+        posHtml += `<div class="result-row"><span class="result-place">${icon}</span><span class="result-name">${names}</span>${muheStr}</div>`;
+      });
+      gamesHtml += `<div class="partija-result"><div class="partija-result-title">PARTIJA ${gi + 1}</div>${posHtml}</div>`;
     });
+
     card.innerHTML = `
       <div class="kolo-header">
         <div><span class="kolo-title">${escHtml(roundName)}</span>${fmtDate ? `<span class="kolo-date"> · ${fmtDate}</span>` : ''}</div>
         <div class="kolo-actions">
-          <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); openEditRound('${round.id}')">✏️ Uredi</button>
           <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deleteRound('${round.id}')">🗑️</button>
         </div>
       </div>
@@ -498,7 +579,7 @@ function renderPovijest() {
 function renderPlayers() {
   const list = document.getElementById('playersList');
   if (state.players.length === 0) {
-    list.innerHTML = '<p style="color:var(--text-dim);font-size:.82rem;">Nema igrača. Dodaj prvog igrača!</p>';
+    list.innerHTML = '<p style="color:var(--text-dim);font-size:.82rem;">Nema igrača.</p>';
     return;
   }
   list.innerHTML = '';
@@ -507,7 +588,6 @@ function renderPlayers() {
     const div = document.createElement('div');
     div.className = 'player-item';
     div.innerHTML = `
-      <span class="player-dot ${p.color}"></span>
       <span class="player-item-name">${escHtml(p.name)}</span>
       <span class="player-item-stats">REZ: ${s.rez !== null ? s.rez.toFixed(2) : '—'} · ${s.partije} partija</span>
       <button class="btn btn-sm btn-danger" onclick="removePlayer('${p.id}')">✕</button>`;
@@ -530,17 +610,16 @@ function openPlayerModal(playerId) {
   const rezClass = s.rez !== null ? (s.rez <= 2 ? 'rez-good' : s.rez <= 3 ? 'rez-mid' : 'rez-bad') : '';
   const best = s.plasmani.length > 0 ? Math.min(...s.plasmani) : null;
   const worst = s.plasmani.length > 0 ? Math.max(...s.plasmani) : null;
-  const bestStr = best === 1 ? '🥇 1.' : best === 2 ? '🥈 2.' : best === 3 ? '🥉 3.' : best === 4 ? '💩 Drek' : '—';
-  const worstStr = worst === 4 ? '💩 Drek' : worst === 3 ? '🥉 3.' : worst === 2 ? '🥈 2.' : worst === 1 ? '🥇 1.' : '—';
+  const bestStr = best === 1 ? '🥇 1.' : best === 2 ? '🥈 2.' : best === 3 ? '🥉 3.' : best === 4 ? '💩' : '—';
+  const worstStr = worst === 4 ? '💩' : worst === 3 ? '🥉 3.' : worst === 2 ? '🥈 2.' : worst === 1 ? '🥇 1.' : '—';
   document.getElementById('playerModalContent').innerHTML = `
     <div class="player-modal-header">
-      <span class="player-dot ${p.color}" style="width:18px;height:18px;flex-shrink:0;border-radius:50%;background:var(--color-${p.color});box-shadow:0 0 8px var(--color-${p.color});display:inline-block;"></span>
       <span class="player-modal-name">${escHtml(p.name)}</span>
       <span style="margin-left:auto;font-size:1.5rem">${getTitle(s)}</span>
     </div>
     <div style="text-align:center;margin-bottom:16px;">
       <span class="rez-big ${rezClass}">${s.rez !== null ? s.rez.toFixed(2) : '—'}</span>
-      <span style="font-size:.7rem;color:var(--text-secondary);">REZ (uključuje kazne)</span>
+      <span style="font-size:.7rem;color:var(--text-secondary);">REZ</span>
     </div>
     <div class="stat-grid">
       <div class="stat-item"><span class="stat-val">${state.rounds.length}</span><span class="stat-label">Ukupno kola</span></div>
@@ -548,93 +627,20 @@ function openPlayerModal(playerId) {
       <div class="stat-item"><span class="stat-val" style="color:var(--ghost-red)">${s.propustena}</span><span class="stat-label">Propuštena</span></div>
       <div class="stat-item"><span class="stat-val">${s.partije}</span><span class="stat-label">Partije</span></div>
       <div class="stat-item"><span class="stat-val">${s.bodovi}</span><span class="stat-label">Bodovi</span></div>
-      <div class="stat-item"><span class="stat-val" style="color:var(--ghost-red)">+${s.kazna.toFixed(2)}</span><span class="stat-label">Kazna</span></div>
+      <div class="stat-item"><span class="stat-val" style="color:var(--ghost-red)">+${s.kazna}</span><span class="stat-label">Kazna</span></div>
       <div class="stat-item"><span class="stat-val" style="color:var(--rank-1)">🥇 ${s.p1}</span><span class="stat-label">Pobjede</span></div>
       <div class="stat-item"><span class="stat-val" style="color:var(--rank-2)">🥈 ${s.p2}</span><span class="stat-label">2. mjesta</span></div>
       <div class="stat-item"><span class="stat-val" style="color:var(--rank-3)">🥉 ${s.p3}</span><span class="stat-label">3. mjesta</span></div>
       <div class="stat-item"><span class="stat-val">💩 ${s.drekovi}</span><span class="stat-label">Drekovi</span></div>
       <div class="stat-item"><span class="stat-val">🪰 ${s.muhe}</span><span class="stat-label">Muhe</span></div>
-      <div class="stat-item"><span class="stat-val" style="font-size:.9rem">${bestStr}</span><span class="stat-label">Najbolji</span></div>
+      <div class="stat-item"><span class="stat-val" style="font-size:.9rem">${bestStr} / ${worstStr}</span><span class="stat-label">Najbolji / Najgori</span></div>
     </div>`;
   document.getElementById('playerModal').classList.add('open');
 }
 
 // =====================
-// EDIT ROUND
+// DELETE ROUND
 // =====================
-function openEditRound(roundId) {
-  const round = state.rounds.find(r => r.id === roundId);
-  if (!round) return;
-  const opts = state.players.map(p => `<option value="${p.id}">${escHtml(p.name)}</option>`).join('');
-  const emptyOpt = `<option value="">-- odaberi --</option>`;
-  const getVal = (id, field) => { const g = round.games[id]; return g ? g[field] : ''; };
-  const getMuhe = (id) => { const g = round.games[id]; return g ? (g.muhe || 0) : 0; };
-  let gamesHtml = '';
-  for (let i = 0; i < 4; i++) {
-    const selOpts = (field) => state.players.map(p =>
-      `<option value="${p.id}" ${getVal(i, field) === p.id ? 'selected' : ''}>${escHtml(p.name)}</option>`).join('');
-    gamesHtml += `
-      <div class="partija-card" id="edit-partija-${i}">
-        <div class="partija-header"><span class="partija-num">PARTIJA ${i+1}</span></div>
-        <div class="partija-grid">
-          <div class="form-group"><label>🥇 1. mjesto</label>
-            <select class="form-input edit-p1" data-idx="${i}">${emptyOpt}${selOpts('p1')}</select></div>
-          <div class="form-group"><label>🥈 2. mjesto</label>
-            <select class="form-input edit-p2" data-idx="${i}">${emptyOpt}${selOpts('p2')}</select></div>
-          <div class="form-group"><label>🥉 3. mjesto</label>
-            <select class="form-input edit-p3" data-idx="${i}">${emptyOpt}${selOpts('p3')}</select></div>
-          <div class="form-group"><label>💩 Drek</label>
-            <select class="form-input edit-drek" data-idx="${i}">${emptyOpt}${selOpts('drek')}</select></div>
-          <div class="partija-drek-row">
-            <div class="form-group" style="margin:0"><label>🪰 Muhe</label>
-              <select class="form-input edit-muhe" data-idx="${i}">
-                ${[0,1,2,3,4].map(v=>`<option value="${v}" ${getMuhe(i)===v?'selected':''}>${v} muha</option>`).join('')}
-              </select></div>
-          </div>
-        </div>
-      </div>`;
-  }
-  document.getElementById('editRoundContent').innerHTML = `
-    <h3 style="font-family:var(--font-display);color:var(--pac-yellow);font-size:.85rem;margin-bottom:16px;">✏️ Uredi: ${escHtml(round.name || 'Kolo')}</h3>
-    <div class="form-group"><label>Datum</label>
-      <input type="date" id="editRoundDate" class="form-input" value="${round.date||''}" /></div>
-    <div class="form-group"><label>Naziv kola</label>
-      <input type="text" id="editRoundName" class="form-input" value="${escHtml(round.name||'')}" /></div>
-    <div style="display:flex;flex-direction:column;gap:12px;margin-top:14px;">${gamesHtml}</div>
-    <div class="form-actions" style="margin-top:16px;">
-      <button class="btn btn-primary" onclick="saveEditRound('${roundId}')">💾 Spremi</button>
-      <button class="btn btn-ghost" onclick="closeEditModal()">Odustani</button>
-    </div>`;
-  document.getElementById('editRoundModal').classList.add('open');
-}
-
-async function saveEditRound(roundId) {
-  const idx = state.rounds.findIndex(r => r.id === roundId);
-  if (idx === -1) return;
-  const newDate = document.getElementById('editRoundDate').value;
-  const newName = document.getElementById('editRoundName').value.trim();
-  const games = [], errors = [];
-  for (let i = 0; i < 4; i++) {
-    const p1 = document.querySelector(`.edit-p1[data-idx="${i}"]`).value;
-    const p2 = document.querySelector(`.edit-p2[data-idx="${i}"]`).value;
-    const p3 = document.querySelector(`.edit-p3[data-idx="${i}"]`).value;
-    const drek = document.querySelector(`.edit-drek[data-idx="${i}"]`).value;
-    const muhe = parseInt(document.querySelector(`.edit-muhe[data-idx="${i}"]`).value) || 0;
-    if (!p1 || !p2 || !p3 || !drek) { errors.push(`Partija ${i+1}: popuni sva mjesta`); continue; }
-    if (new Set([p1,p2,p3,drek]).size !== 4) { errors.push(`Partija ${i+1}: dupli igrač`); continue; }
-    games.push({ p1, p2, p3, drek, muhe });
-  }
-  if (errors.length > 0) { showToast(errors[0], true); return; }
-  if (games.length !== 4) { showToast('Popuni sve partije', true); return; }
-  state.rounds[idx] = { ...state.rounds[idx], date: newDate, name: newName, games };
-  closeEditModal();
-  await saveToCloud();
-  renderPovijest();
-  showToast('Kolo ažurirano!');
-}
-
-function closeEditModal() { document.getElementById('editRoundModal').classList.remove('open'); }
-
 async function deleteRound(roundId) {
   if (!confirm('Obrisati ovo kolo?')) return;
   state.rounds = state.rounds.filter(r => r.id !== roundId);
@@ -649,12 +655,11 @@ async function deleteRound(roundId) {
 async function addPlayer() {
   const name = document.getElementById('newPlayerName').value.trim();
   if (!name) { showToast('Unesi ime igrača', true); return; }
-  if (state.players.length >= 8) { showToast('Maksimalno 8 igrača!', true); return; }
+  if (state.players.length >= 12) { showToast('Maksimalno 12 igrača!', true); return; }
   if (state.players.find(p => p.name.toLowerCase() === name.toLowerCase())) {
     showToast('Igrač s tim imenom već postoji', true); return;
   }
-  const color = document.querySelector('input[name="playerColor"]:checked').value;
-  state.players.push({ id: Date.now().toString(), name, color });
+  state.players.push({ id: Date.now().toString(), name });
   document.getElementById('newPlayerName').value = '';
   await saveToCloud();
   renderPlayers();
@@ -674,8 +679,7 @@ async function removePlayer(playerId) {
 // EXPORT / IMPORT / RESET
 // =====================
 function exportData() {
-  const json = JSON.stringify(state, null, 2);
-  const blob = new Blob([json], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -684,7 +688,6 @@ function exportData() {
   URL.revokeObjectURL(url);
   showToast('Backup exportan!');
 }
-
 async function importData(file) {
   if (!file) return;
   const reader = new FileReader();
@@ -692,7 +695,7 @@ async function importData(file) {
     try {
       const imported = JSON.parse(e.target.result);
       if (!imported.players || !imported.rounds) throw new Error('Neispravan format');
-      if (!confirm('Import će zamijeniti sve trenutne podatke. Nastavi?')) return;
+      if (!confirm('Import će zamijeniti sve podatke. Nastavi?')) return;
       state = { ...state, ...imported };
       await saveToCloud();
       showToast('Import uspješan!');
@@ -701,7 +704,6 @@ async function importData(file) {
   };
   reader.readAsText(file);
 }
-
 async function resetLeague() {
   const input = prompt('Upiši "RESET" za potvrdu:');
   if (input !== 'RESET') { showToast('Reset otkazan'); return; }
@@ -773,10 +775,6 @@ async function init() {
     if (e.target === document.getElementById('playerModal'))
       document.getElementById('playerModal').classList.remove('open');
   });
-  document.getElementById('editModalClose').addEventListener('click', closeEditModal);
-  document.getElementById('editRoundModal').addEventListener('click', e => {
-    if (e.target === document.getElementById('editRoundModal')) closeEditModal();
-  });
   document.getElementById('exportBtn').addEventListener('click', exportData);
   document.getElementById('importFile').addEventListener('change', e => { importData(e.target.files[0]); e.target.value = ''; });
   document.getElementById('resetBtn').addEventListener('click', resetLeague);
@@ -785,6 +783,21 @@ async function init() {
     const val = document.getElementById('leagueNameInput').value.trim();
     if (val) { state.leagueName = val; await saveToCloud(); showToast('Naziv lige spremen!'); }
   });
+
+  // Pokaži/sakrij muhe kad se mijenja place u formi
+  document.addEventListener('change', e => {
+    if (e.target.classList.contains('pos-place')) {
+      const partijaNum = e.target.dataset.partija;
+      const posIdx = e.target.dataset.pos;
+      updatePositionInputs(partijaNum, posIdx);
+    }
+    if (e.target.classList.contains('pos-type')) {
+      const partijaNum = e.target.dataset.partija;
+      const posIdx = e.target.dataset.pos;
+      updatePositionInputs(partijaNum, posIdx);
+    }
+  });
+
   await loadFromCloud();
   startAutoRefresh();
 }

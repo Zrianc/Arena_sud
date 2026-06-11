@@ -38,23 +38,21 @@
 
   <main class="main-content">
 
-    <!-- ===== VIEW: UKUPNA TABLICA ===== -->
+    <!-- UKUPNA TABLICA -->
     <section class="view active" id="view-tablica">
       <div class="view-header">
         <h2><span class="ghost ghost-red">👻</span> Ukupna Tablica <span class="ghost ghost-blue">👻</span></h2>
         <div class="sync-bar">
           <span id="syncStatus" style="font-size:.7rem;font-family:var(--font-mono);color:var(--neon-blue);">⏳ Učitavanje...</span>
-          <button class="btn btn-sm btn-ghost" id="refreshBtn" style="padding:3px 8px;font-size:.7rem;">🔄 Osvježi</button>
+          <button class="btn btn-sm btn-ghost" id="refreshBtn" style="padding:3px 8px;font-size:.7rem;">🔄</button>
         </div>
         <div class="league-name-wrap">
           <span id="leagueName" class="league-name-display"></span>
         </div>
       </div>
-
-      <div class="penalty-info card" style="margin-bottom:14px;padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <div class="penalty-info card" style="margin-bottom:14px;padding:10px 16px;">
         <span style="font-size:.75rem;color:var(--text-secondary);">ℹ️ REZ uključuje kaznu: <strong style="color:var(--ghost-red);">+1 bod</strong> za svako propušteno kolo</span>
       </div>
-
       <div class="table-wrap">
         <div class="scroll-container">
           <table class="liga-table" id="ligaTable">
@@ -62,19 +60,19 @@
               <tr>
                 <th class="col-rank sticky-col">#</th>
                 <th class="col-name sticky-col2">Igrač</th>
-                <th class="col-title" title="Titula">🏅</th>
-                <th class="col-num" title="Ukupno kola u ligi">K</th>
-                <th class="col-num" title="Kola na kojima je sudjelovao">Dol.</th>
-                <th class="col-num" title="Propuštena kola">Prop.</th>
-                <th class="col-num" title="Odigrane partije">Part.</th>
-                <th class="col-num" title="Ukupni bodovi iz partija">Bod</th>
-                <th class="col-num" title="Kazna za propuštena kola">Kaz.</th>
-                <th class="col-rez" title="REZ = (bodovi / partije) + kazna">REZ</th>
-                <th class="col-num" title="Pobjede">🥇</th>
-                <th class="col-num" title="Druga mjesta">🥈</th>
-                <th class="col-num" title="Treća mjesta">🥉</th>
-                <th class="col-num" title="Drekovi">💩</th>
-                <th class="col-num" title="Muhe">🪰</th>
+                <th class="col-title">🏅</th>
+                <th class="col-num" title="Ukupno kola">K</th>
+                <th class="col-num" title="Dolasci">Dol.</th>
+                <th class="col-num" title="Propuštena">Prop.</th>
+                <th class="col-num" title="Partije">Part.</th>
+                <th class="col-num" title="Bodovi">Bod</th>
+                <th class="col-num" title="Kazna">Kaz.</th>
+                <th class="col-rez" title="REZ">REZ</th>
+                <th class="col-num">🥇</th>
+                <th class="col-num">🥈</th>
+                <th class="col-num">🥉</th>
+                <th class="col-num">💩</th>
+                <th class="col-num">🪰</th>
                 <th class="col-history history-header" id="historyHeaderRow"></th>
               </tr>
             </thead>
@@ -82,7 +80,6 @@
           </table>
         </div>
       </div>
-
       <div class="empty-state" id="tablicaEmpty" style="display:none;">
         <div class="pacman-big">ᗤ · · · ·</div>
         <p>Nema podataka. Dodaj igrače i unesi prvo kolo!</p>
@@ -90,7 +87,7 @@
       </div>
     </section>
 
-    <!-- ===== VIEW: TABLICA PO KOLIMA ===== -->
+    <!-- TABLICA PO KOLIMA -->
     <section class="view" id="view-kola">
       <div class="view-header">
         <h2><span class="ghost ghost-red">👻</span> Tablica po Kolima</h2>
@@ -102,7 +99,7 @@
       </div>
     </section>
 
-    <!-- ===== VIEW: NOVO KOLO ===== -->
+    <!-- NOVO KOLO -->
     <section class="view" id="view-novo-kolo">
       <div class="view-header">
         <h2>👻 Novo Kolo</h2>
@@ -114,7 +111,7 @@
             <input type="date" id="newRoundDate" class="form-input" />
           </div>
           <div class="form-group">
-            <label>Naziv kola (opcionalno)</label>
+            <label>Naziv kola</label>
             <input type="text" id="newRoundName" class="form-input" placeholder="npr. Kolo 5" />
           </div>
         </div>
@@ -126,12 +123,12 @@
       </div>
       <div class="empty-state" id="noPlayersMsg" style="display:none;">
         <div class="pacman-big">ᗤ · · · ·</div>
-        <p>Nema dovoljno igrača za kolo. Treba minimalno 4.</p>
+        <p>Nema dovoljno igrača. Treba minimalno 4.</p>
         <button class="btn btn-primary" onclick="showView('igraci')">👥 Dodaj igrače</button>
       </div>
     </section>
 
-    <!-- ===== VIEW: POVIJEST ===== -->
+    <!-- POVIJEST -->
     <section class="view" id="view-povijest">
       <div class="view-header">
         <h2>👻 Povijest Kola</h2>
@@ -143,29 +140,20 @@
       </div>
     </section>
 
-    <!-- ===== VIEW: IGRAČI ===== -->
+    <!-- IGRAČI -->
     <section class="view" id="view-igraci">
       <div class="view-header">
         <h2>👻 Upravljanje Igračima</h2>
       </div>
       <div class="players-layout">
         <div class="add-player-card card">
-          <h3>➕ Dodaj igrača / par</h3>
+          <h3>➕ Dodaj igrača</h3>
           <div class="form-group">
-            <label>Ime igrača (ili para)</label>
-            <input type="text" id="newPlayerName" class="form-input" placeholder="npr. Luka ili Pero + Ana" maxlength="40" />
-          </div>
-          <div class="form-group">
-            <label>Boja pozicije</label>
-            <div class="color-picker">
-              <label class="color-opt"><input type="radio" name="playerColor" value="red" checked /><span class="color-swatch red"></span>Crvena</label>
-              <label class="color-opt"><input type="radio" name="playerColor" value="blue" /><span class="color-swatch blue"></span>Plava</label>
-              <label class="color-opt"><input type="radio" name="playerColor" value="green" /><span class="color-swatch green"></span>Zelena</label>
-              <label class="color-opt"><input type="radio" name="playerColor" value="yellow" /><span class="color-swatch yellow"></span>Žuta</label>
-            </div>
+            <label>Ime igrača</label>
+            <input type="text" id="newPlayerName" class="form-input" placeholder="npr. Luka" maxlength="40" />
           </div>
           <button class="btn btn-primary" id="addPlayerBtn">➕ Dodaj</button>
-          <p class="hint">Minimalno 4, maksimalno 8 igrača/para.</p>
+          <p class="hint">Minimalno 4 igrača. Par/trio se bira pri unosu kola.</p>
         </div>
         <div class="players-list-card card">
           <h3>👥 Igrači u ligi</h3>
@@ -174,7 +162,7 @@
       </div>
     </section>
 
-    <!-- ===== VIEW: POSTAVKE ===== -->
+    <!-- POSTAVKE -->
     <section class="view" id="view-postavke">
       <div class="view-header">
         <h2>👻 Postavke & Podaci</h2>
@@ -189,7 +177,6 @@
         </div>
         <div class="card">
           <h3>💾 Export / Import</h3>
-          <p>Izvezi sve podatke kao JSON backup ili uvezi prethodni backup.</p>
           <div class="btn-group">
             <button class="btn btn-secondary" id="exportBtn">📤 Export JSON</button>
             <label class="btn btn-secondary" style="cursor:pointer;">
@@ -200,7 +187,7 @@
         </div>
         <div class="card danger-card">
           <h3>⚠️ Reset lige</h3>
-          <p>Briše SVE podatke — igrače, kola, statistiku. Nepovratno!</p>
+          <p>Briše SVE podatke. Nepovratno!</p>
           <button class="btn btn-danger" id="resetBtn">🗑️ Reset lige</button>
         </div>
       </div>
@@ -216,15 +203,7 @@
     </div>
   </div>
 
-  <!-- MODAL: UREDI KOLO -->
-  <div class="modal-overlay" id="editRoundModal">
-    <div class="modal-box modal-wide">
-      <button class="modal-close" id="editModalClose">✕</button>
-      <div id="editRoundContent"></div>
-    </div>
-  </div>
-
   <div class="toast" id="toast"></div>
-  <script src="app.js?v=3"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>
