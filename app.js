@@ -860,13 +860,8 @@ async function init() {
     if (val) { state.leagueName = val; await saveToCloud(); showToast('Naziv lige spremen!'); }
   });
 
-  // Pokaži/sakrij muhe kad se mijenja place u formi
+  // Ažuriraj igrače kad se mijenja tip (solo/par/trio)
   document.addEventListener('change', e => {
-    if (e.target.classList.contains('pos-place')) {
-      const partijaNum = e.target.dataset.partija;
-      const posIdx = e.target.dataset.pos;
-      updatePositionInputs(partijaNum, posIdx);
-    }
     if (e.target.classList.contains('pos-type')) {
       const partijaNum = e.target.dataset.partija;
       const posIdx = e.target.dataset.pos;
