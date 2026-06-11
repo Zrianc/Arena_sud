@@ -213,7 +213,7 @@ function renderTable() {
       else if (place === 2) histCells += `<td class="hist-cell hist-2">2</td>`;
       else if (place === 3) histCells += `<td class="hist-cell hist-3">3</td>`;
       else if (place === 4) histCells += `<td class="hist-cell hist-drek">💩</td>`;
-      else histCells += `<td class="hist-cell hist-empty"></td>`;
+      else histCells += `<td class="hist-cell hist-empty">👨‍❤️‍💋‍👨</td>`;
     });
 
     const tr = document.createElement('tr');
