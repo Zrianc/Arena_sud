@@ -818,3 +818,25 @@ select.form-input {
 [data-theme="light"] .kolo-header { background: #fff8dc; }
 [data-theme="light"] .maze-bar { background: #fff8dc; }
 [data-theme="light"] .hist-empty { background: rgba(0,0,0,0.05); }
+
+/* ===== TABLICA PO KOLIMA ===== */
+.kolo-tablica-wrap {
+  margin-bottom: 20px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--border-bright);
+  box-shadow: var(--shadow);
+}
+.kolo-tablica-header {
+  background: #0d0d1a;
+  padding: 10px 16px;
+  border-bottom: 2px solid var(--pac-yellow);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.kolo-tablica-wrap .table-wrap {
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+}

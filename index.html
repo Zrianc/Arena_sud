@@ -5,10 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>🟡 Čovječe Liga</title>
   <link rel="stylesheet" href="style.css" />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Emoji&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" />
 </head>
 <body>
-  <!-- PAC-MAN HEADER -->
   <header class="site-header">
     <div class="header-inner">
       <div class="logo">
@@ -24,6 +23,7 @@
       </div>
       <nav class="main-nav">
         <button class="nav-btn active" data-view="tablica">🏆 Tablica</button>
+        <button class="nav-btn" data-view="kola">📊 Kola</button>
         <button class="nav-btn" data-view="novo-kolo">➕ Novo kolo</button>
         <button class="nav-btn" data-view="povijest">📋 Povijest</button>
         <button class="nav-btn" data-view="igraci">👥 Igrači</button>
@@ -31,7 +31,6 @@
       </nav>
       <button class="theme-toggle" id="themeToggle" title="Dark/Light mode">🌙</button>
     </div>
-    <!-- Pac-Man maze dots decoration -->
     <div class="maze-bar">
       <div class="maze-dots" id="mazeDots"></div>
     </div>
@@ -39,13 +38,21 @@
 
   <main class="main-content">
 
-    <!-- ===== VIEW: TABLICA ===== -->
+    <!-- ===== VIEW: UKUPNA TABLICA ===== -->
     <section class="view active" id="view-tablica">
       <div class="view-header">
-        <h2><span class="ghost ghost-red">👻</span> Liga Tablica <span class="ghost ghost-blue">👻</span></h2>
-        <div class="sync-bar"><span id="syncStatus" style="font-size:.7rem;font-family:var(--font-mono);color:var(--neon-blue);">⏳ Učitavanje...</span><button class="btn btn-sm btn-ghost" id="refreshBtn" style="padding:3px 8px;font-size:.7rem;">🔄 Osvježi</button></div><div class="league-name-wrap">
+        <h2><span class="ghost ghost-red">👻</span> Ukupna Tablica <span class="ghost ghost-blue">👻</span></h2>
+        <div class="sync-bar">
+          <span id="syncStatus" style="font-size:.7rem;font-family:var(--font-mono);color:var(--neon-blue);">⏳ Učitavanje...</span>
+          <button class="btn btn-sm btn-ghost" id="refreshBtn" style="padding:3px 8px;font-size:.7rem;">🔄 Osvježi</button>
+        </div>
+        <div class="league-name-wrap">
           <span id="leagueName" class="league-name-display"></span>
         </div>
+      </div>
+
+      <div class="penalty-info card" style="margin-bottom:14px;padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <span style="font-size:.75rem;color:var(--text-secondary);">ℹ️ REZ uključuje kaznu: <strong style="color:var(--ghost-red);">+1 bod</strong> za svako propušteno kolo</span>
       </div>
 
       <div class="table-wrap">
@@ -56,11 +63,13 @@
                 <th class="col-rank sticky-col">#</th>
                 <th class="col-name sticky-col2">Igrač</th>
                 <th class="col-title" title="Titula">🏅</th>
-                <th class="col-num" title="Broj kola">K</th>
-                <th class="col-num" title="Odigrane partije">P</th>
-                <th class="col-num" title="Postotak odigranosti">%</th>
-                <th class="col-num" title="Ukupni bodovi">Bod</th>
-                <th class="col-rez" title="REZ - prosjek (manji = bolji)">REZ</th>
+                <th class="col-num" title="Ukupno kola u ligi">K</th>
+                <th class="col-num" title="Kola na kojima je sudjelovao">Dol.</th>
+                <th class="col-num" title="Propuštena kola">Prop.</th>
+                <th class="col-num" title="Odigrane partije">Part.</th>
+                <th class="col-num" title="Ukupni bodovi iz partija">Bod</th>
+                <th class="col-num" title="Kazna za propuštena kola">Kaz.</th>
+                <th class="col-rez" title="REZ = (bodovi / partije) + kazna">REZ</th>
                 <th class="col-num" title="Pobjede">🥇</th>
                 <th class="col-num" title="Druga mjesta">🥈</th>
                 <th class="col-num" title="Treća mjesta">🥉</th>
@@ -74,10 +83,22 @@
         </div>
       </div>
 
-      <div class="empty-state" id="tablicaEmpty">
+      <div class="empty-state" id="tablicaEmpty" style="display:none;">
         <div class="pacman-big">ᗤ · · · ·</div>
         <p>Nema podataka. Dodaj igrače i unesi prvo kolo!</p>
         <button class="btn btn-primary" onclick="showView('igraci')">👥 Dodaj igrače</button>
+      </div>
+    </section>
+
+    <!-- ===== VIEW: TABLICA PO KOLIMA ===== -->
+    <section class="view" id="view-kola">
+      <div class="view-header">
+        <h2><span class="ghost ghost-red">👻</span> Tablica po Kolima</h2>
+      </div>
+      <div id="kolaTablesWrap"></div>
+      <div class="empty-state" id="kolaEmpty" style="display:none;">
+        <div class="pacman-big">ᗤ · · · ·</div>
+        <p>Nema odigranih kola.</p>
       </div>
     </section>
 
@@ -187,7 +208,7 @@
 
   </main>
 
-  <!-- ===== MODAL: STATISTIKA IGRAČA ===== -->
+  <!-- MODAL: STATISTIKA IGRAČA -->
   <div class="modal-overlay" id="playerModal">
     <div class="modal-box">
       <button class="modal-close" id="modalClose">✕</button>
@@ -195,7 +216,7 @@
     </div>
   </div>
 
-  <!-- ===== MODAL: UREDI KOLO ===== -->
+  <!-- MODAL: UREDI KOLO -->
   <div class="modal-overlay" id="editRoundModal">
     <div class="modal-box modal-wide">
       <button class="modal-close" id="editModalClose">✕</button>
@@ -203,9 +224,7 @@
     </div>
   </div>
 
-  <!-- TOAST -->
   <div class="toast" id="toast"></div>
-
   <script src="app.js"></script>
 </body>
 </html>
