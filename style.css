@@ -887,3 +887,20 @@ select.form-input {
   max-width: 260px;
   line-height: 1.4;
 }
+
+/* ===== DREK STREAK TABLE ===== */
+.streak-table-wrap {
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid rgba(255,59,59,0.4);
+  box-shadow: 0 0 16px rgba(255,59,59,0.15);
+}
+.streak-header {
+  background: #1a0a0a;
+  padding: 10px 16px;
+  border-bottom: 2px solid var(--ghost-red);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}

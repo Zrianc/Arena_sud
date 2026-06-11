@@ -210,13 +210,16 @@ function renderTable() {
       ? `<span style="color:var(--ghost-red);">+${s.kazna.toFixed(2)}</span>`
       : `<span style="color:var(--text-dim);">—</span>`;
 
+    const streak = computeDrekStreak(p.id);
+    const saintIcon = streak >= 5 ? ' <span title="5+ drekova zaredom!">🙏</span>' : '';
+
     const tr = document.createElement('tr');
     tr.dataset.playerId = p.id;
     tr.addEventListener('click', () => openPlayerModal(p.id));
     tr.innerHTML = `
       <td class="col-rank sticky-col"><span class="rank-badge rank-${rank <= 3 ? rank : 'other'}">${rank}</span></td>
       <td class="col-name sticky-col2">
-        <div class="player-name-cell"><span>${escHtml(p.name)}</span></div>
+        <div class="player-name-cell"><span>${escHtml(p.name)}${saintIcon}</span></div>
       </td>
       <td class="col-title"><span class="title-badge">${getTitle(s)}</span></td>
       <td class="col-num">${state.rounds.length}</td>
@@ -235,6 +238,89 @@ function renderTable() {
     `;
     body.appendChild(tr);
   });
+
+  renderDrekStreakTable();
+}
+
+function computeDrekStreak(playerId) {
+  // Prolazi kroz sve partije kronološkim redom i broji uzastopne drekove
+  let streak = 0;
+  for (const round of state.rounds) {
+    for (const game of round.games) {
+      if (!game) continue;
+      const result = getPlayerPlaceInGame(playerId, game);
+      if (result === null) continue; // nije igrao tu partiju
+      if (result.place === 4) streak++;
+      else streak = 0; // prekinuo streak
+    }
+  }
+  return streak;
+}
+
+function renderDrekStreakTable() {
+  const wrap = document.getElementById('drekStreakWrap');
+  if (!wrap) return;
+
+  if (state.players.length === 0 || state.rounds.length === 0) {
+    wrap.style.display = 'none';
+    return;
+  }
+
+  const streaks = state.players
+    .map(p => ({ ...p, streak: computeDrekStreak(p.id) }))
+    .filter(p => p.streak > 0)
+    .sort((a, b) => b.streak - a.streak);
+
+  if (streaks.length === 0) {
+    wrap.style.display = 'none';
+    return;
+  }
+
+  wrap.style.display = 'block';
+  wrap.innerHTML = `
+    <div class="streak-table-wrap">
+      <div class="streak-header">
+        <span style="font-family:var(--font-display);font-size:.8rem;color:var(--ghost-red);letter-spacing:1px;">💩 DREK STREAK</span>
+        <span style="font-size:.7rem;color:var(--text-dim);">Uzastopni drekovi zaredom</span>
+      </div>
+      <div class="scroll-container">
+        <table class="liga-table">
+          <thead>
+            <tr>
+              <th class="col-rank sticky-col">#</th>
+              <th class="col-name sticky-col2">Igrač</th>
+              <th class="col-num" title="Uzastopni drekovi">💩 Zaredom</th>
+              <th class="col-num">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${streaks.map((p, idx) => {
+              const isSaint = p.streak >= 5;
+              const flame = p.streak >= 3 ? '🔥'.repeat(Math.min(p.streak - 2, 5)) : '';
+              return `
+                <tr>
+                  <td class="col-rank sticky-col"><span class="rank-badge rank-other">${idx + 1}</span></td>
+                  <td class="col-name sticky-col2">
+                    <div class="player-name-cell">
+                      <span>${escHtml(p.name)}</span>
+                      ${isSaint ? '<span style="font-size:1.2rem;margin-left:6px;" title="5+ drekova zaredom!">🙏</span>' : ''}
+                    </div>
+                  </td>
+                  <td class="col-num" style="font-family:var(--font-mono);font-size:1.1rem;color:var(--ghost-red);font-weight:700;">${p.streak} ${flame}</td>
+                  <td class="col-num" style="font-size:.85rem;">
+                    ${isSaint
+                      ? '<span style="color:var(--ghost-red);">Sveta Marija 🙏</span>'
+                      : p.streak >= 3
+                        ? '<span style="color:var(--pac-yellow);">Opasno!</span>'
+                        : '<span style="color:var(--text-dim);">U toku</span>'}
+                  </td>
+                </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
 }
 
 function rebuildHistoryHeaders() {
