@@ -400,57 +400,42 @@ function buildPartijaCard(num) {
 
   // 4 pozicije, svaka s dropdown za tip (solo/par/trio) i playerima
   let positionsHtml = '';
-  const posColors = ['var(--color-red)', 'var(--color-blue)', 'var(--color-green)', 'var(--color-yellow)'];
-  const posNames = ['Crvena', 'Plava', 'Zelena', 'Žuta'];
+  const posIcons = ['🥇', '🥈', '🥉', '💩'];
+  const posPlaces = [1, 2, 3, 4];
 
   for (let pos = 0; pos < 4; pos++) {
     const playerOpts = state.players.map(p =>
       `<option value="${p.id}">${escHtml(p.name)}</option>`
     ).join('');
     const emptyOpt = `<option value="">-- odaberi --</option>`;
+    const isDrek = pos === 3;
 
     positionsHtml += `
-      <div class="position-block" id="pos-${num}-${pos}" style="border-left: 3px solid ${posColors[pos]};padding-left:10px;margin-bottom:10px;">
+      <div class="position-block" id="pos-${num}-${pos}">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-          <span style="font-size:.7rem;font-family:var(--font-display);color:${posColors[pos]};">${posNames[pos]}</span>
+          <span style="font-size:1.2rem;">${posIcons[pos]}</span>
           <select class="form-input pos-type" data-partija="${num}" data-pos="${pos}" style="width:auto;padding:4px 8px;font-size:.8rem;" onchange="updatePositionInputs(${num}, ${pos})">
             <option value="solo">Solo</option>
             <option value="par">Par</option>
             <option value="trio">Trio</option>
           </select>
-          <select class="form-input pos-place" data-partija="${num}" data-pos="${pos}" style="width:auto;padding:4px 8px;font-size:.8rem;">
-            <option value="1">🥇 1. mjesto</option>
-            <option value="2">🥈 2. mjesto</option>
-            <option value="3">🥉 3. mjesto</option>
-            <option value="4">💩 Drek</option>
-          </select>
         </div>
         <div class="pos-players" id="pos-players-${num}-${pos}">
           <select class="form-input pos-player-1" data-partija="${num}" data-pos="${pos}" style="margin-bottom:4px;">${emptyOpt}${playerOpts}</select>
         </div>
-        <div class="pos-muhe-row" id="pos-muhe-${num}-${pos}" style="display:none;margin-top:4px;">
+        ${isDrek ? `
+        <div class="pos-muhe-row" id="pos-muhe-${num}-${pos}" style="margin-top:6px;">
           <label style="font-size:.72rem;color:var(--text-secondary);">🪰 Muhe: </label>
           <select class="form-input pos-muhe" data-partija="${num}" data-pos="${pos}" style="width:auto;padding:4px 8px;font-size:.8rem;">
             ${[0,1,2,3,4].map(v=>`<option value="${v}">${v}</option>`).join('')}
           </select>
-        </div>
+        </div>` : `<div id="pos-muhe-${num}-${pos}" style="display:none;"></div>`}
       </div>`;
   }
 
   card.innerHTML = `
     <div class="partija-header"><span class="partija-num">PARTIJA ${num}</span></div>
     <div style="padding:4px 0;">${positionsHtml}</div>`;
-
-  // Inicijaliziraj place dropdowne da ne budu isti
-  setTimeout(() => {
-    const places = card.querySelectorAll('.pos-place');
-    places[0].value = '1';
-    places[1].value = '2';
-    places[2].value = '3';
-    places[3].value = '4';
-    // Pokaži muhe za pos 3 (drek) odmah
-    updatePositionInputs(num, 3);
-  }, 0);
 
   return card;
 }
