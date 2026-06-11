@@ -280,39 +280,8 @@ function rebuildHistoryHeaders() {
 }
 
 // =====================
-// TABLICA PO KOLIMA (kumulativna)
+// TABLICA PO KOLIMA (jednostavna)
 // =====================
-function computePlayerStatsThroughRound(playerId, roundsSubset) {
-  const s = { partije: 0, bodovi: 0, p1: 0, p2: 0, p3: 0, drekovi: 0, muhe: 0, kola: 0, propustena: 0 };
-  const kolaSet = new Set();
-  for (const round of roundsSubset) {
-    let playedThisRound = false;
-    for (const game of round.games) {
-      if (!game) continue;
-      let place = null, m = 0;
-      if (game.p1 === playerId) place = 1;
-      else if (game.p2 === playerId) place = 2;
-      else if (game.p3 === playerId) place = 3;
-      else if (game.drek === playerId) { place = 4; m = game.muhe || 0; }
-      if (place !== null) {
-        s.partije++; s.bodovi += place;
-        if (place === 1) s.p1++;
-        else if (place === 2) s.p2++;
-        else if (place === 3) s.p3++;
-        else { s.drekovi++; s.muhe += m; }
-        playedThisRound = true;
-      }
-    }
-    if (playedThisRound) kolaSet.add(round.id);
-  }
-  s.kola = kolaSet.size;
-  s.propustena = roundsSubset.length - s.kola;
-  s.kazna = s.propustena * 1;
-  const prosjek = s.partije > 0 ? s.bodovi / s.partije : 0;
-  s.rez = s.partije > 0 ? prosjek + s.kazna : null;
-  return s;
-}
-
 function renderKola() {
   const wrap = document.getElementById('kolaTablesWrap');
   const empty = document.getElementById('kolaEmpty');
@@ -325,84 +294,100 @@ function renderKola() {
   empty.style.display = 'none';
   wrap.innerHTML = '';
 
-  // Prikaži od najnovijeg prema najstarijem — svako kolo = kumulativna tablica K1..Kn
   [...state.rounds].reverse().forEach((round) => {
     const realIdx = state.rounds.indexOf(round);
-    const roundsUpTo = state.rounds.slice(0, realIdx + 1);
     const roundName = round.name || `Kolo ${realIdx + 1}`;
     const fmtDate = round.date ? formatDate(round.date) : '';
-
-    const players = [...state.players]
-      .map(p => ({ ...p, cs: computePlayerStatsThroughRound(p.id, roundsUpTo) }))
-      .sort((a, b) => {
-        const as = a.cs, bs = b.cs;
-        if (as.partije === 0 && bs.partije === 0) return 0;
-        if (as.partije === 0) return 1;
-        if (bs.partije === 0) return -1;
-        if (as.rez !== bs.rez) return as.rez - bs.rez;
-        if (as.p1 !== bs.p1) return bs.p1 - as.p1;
-        if (as.drekovi !== bs.drekovi) return as.drekovi - bs.drekovi;
-        return bs.partije - as.partije;
-      });
 
     const section = document.createElement('div');
     section.className = 'kolo-tablica-wrap';
 
+    // Izgradi header — P1 P2 P3 P4 + Muhe
+    let headerCells = `
+      <th class="col-rank sticky-col">#</th>
+      <th class="col-name sticky-col2">Igrač</th>`;
+    round.games.forEach((_, gi) => {
+      headerCells += `<th class="col-num">P${gi + 1}</th>`;
+    });
+    headerCells += `<th class="col-num" title="Muhe">&#129336;</th>`;
+
+    // Redovi po igračima
     let rows = '';
-    players.forEach((p, idx) => {
-      const cs = p.cs;
-      const rank = idx + 1;
-      const rezClass = cs.rez !== null ? (cs.rez <= 2 ? 'rez-good' : cs.rez <= 3 ? 'rez-mid' : 'rez-bad') : '';
-      const kaznaStr = cs.kazna > 0 ? `<span style="color:var(--ghost-red);">+${cs.kazna.toFixed(2)}</span>` : `<span style="color:var(--text-dim);">—</span>`;
+    state.players.forEach((p, idx) => {
+      const plasmani = [];
+      let ukupnoMuhe = 0;
+      let played = false;
+
+      round.games.forEach((game) => {
+        if (!game) { plasmani.push(null); return; }
+        if (game.p1 === p.id) { plasmani.push(1); played = true; }
+        else if (game.p2 === p.id) { plasmani.push(2); played = true; }
+        else if (game.p3 === p.id) { plasmani.push(3); played = true; }
+        else if (game.drek === p.id) { plasmani.push(4); ukupnoMuhe += game.muhe || 0; played = true; }
+        else plasmani.push(null);
+      });
+
+      if (!played) return; // preskoči igrače koji nisu bili
+
+      let cells = '';
+      plasmani.forEach(place => {
+        if (place === 1) cells += `<td class="hist-cell hist-1" style="font-size:1.1rem;font-weight:700;">1</td>`;
+        else if (place === 2) cells += `<td class="hist-cell hist-2" style="font-size:1.1rem;">2</td>`;
+        else if (place === 3) cells += `<td class="hist-cell hist-3" style="font-size:1.1rem;">3</td>`;
+        else if (place === 4) cells += `<td class="hist-cell hist-drek" style="font-size:1.2rem;">&#128169;</td>`;
+        else cells += `<td class="hist-cell hist-empty">—</td>`;
+      });
+
+      const muheStr = ukupnoMuhe > 0
+        ? `<span style="color:var(--ghost-red);font-weight:700;">${ukupnoMuhe}</span>`
+        : `<span style="color:var(--text-dim);">0</span>`;
+
       rows += `
         <tr>
-          <td class="col-rank sticky-col"><span class="rank-badge rank-${rank <= 3 ? rank : 'other'}">${rank}</span></td>
+          <td class="col-rank sticky-col"><span class="rank-badge rank-other">${idx + 1}</span></td>
           <td class="col-name sticky-col2">
             <div class="player-name-cell">
               <span class="player-dot ${p.color}"></span>
               <span>${escHtml(p.name)}</span>
             </div>
           </td>
-          <td class="col-num">${cs.kola}</td>
-          <td class="col-num" style="color:var(--ghost-red)">${cs.propustena > 0 ? cs.propustena : '—'}</td>
-          <td class="col-num">${cs.partije}</td>
-          <td class="col-num">${cs.bodovi}</td>
-          <td class="col-num">${kaznaStr}</td>
-          <td class="col-rez ${rezClass}">${cs.rez !== null ? cs.rez.toFixed(2) : '—'}</td>
-          <td class="col-num">${cs.p1}</td>
-          <td class="col-num">${cs.p2}</td>
-          <td class="col-num">${cs.p3}</td>
-          <td class="col-num">${cs.drekovi}</td>
+          ${cells}
+          <td class="col-num">${muheStr}</td>
+        </tr>`;
+    });
+
+    // Igrači koji nisu bili — na dnu
+    state.players.forEach((p) => {
+      let played = false;
+      for (const game of round.games) {
+        if (!game) continue;
+        if ([game.p1, game.p2, game.p3, game.drek].includes(p.id)) { played = true; break; }
+      }
+      if (played) return;
+      const emptyCells = round.games.map(() => `<td class="hist-cell hist-empty" style="color:var(--text-dim);">—</td>`).join('');
+      rows += `
+        <tr style="opacity:0.45;">
+          <td class="col-rank sticky-col"><span class="rank-badge rank-other">—</span></td>
+          <td class="col-name sticky-col2">
+            <div class="player-name-cell">
+              <span class="player-dot ${p.color}"></span>
+              <span>${escHtml(p.name)}</span>
+            </div>
+          </td>
+          ${emptyCells}
+          <td class="col-num" style="color:var(--text-dim);">—</td>
         </tr>`;
     });
 
     section.innerHTML = `
       <div class="kolo-tablica-header">
-        <div>
-          <span class="kolo-title">Tablica nakon: ${escHtml(roundName)}</span>
-          ${fmtDate ? `<span class="kolo-date"> · ${fmtDate}</span>` : ''}
-        </div>
-        <span style="font-size:.62rem;color:var(--text-dim);font-family:var(--font-mono);">K1 – K${realIdx + 1}</span>
+        <span class="kolo-title">${escHtml(roundName)}</span>
+        ${fmtDate ? `<span class="kolo-date"> · ${fmtDate}</span>` : ''}
       </div>
       <div class="table-wrap" style="margin-bottom:0;">
         <div class="scroll-container">
           <table class="liga-table">
-            <thead>
-              <tr>
-                <th class="col-rank sticky-col">#</th>
-                <th class="col-name sticky-col2">Igrač</th>
-                <th class="col-num" title="Dolasci">Dol.</th>
-                <th class="col-num" title="Propuštena">Prop.</th>
-                <th class="col-num" title="Partije">Part.</th>
-                <th class="col-num" title="Bodovi">Bod</th>
-                <th class="col-num" title="Kazna">Kaz.</th>
-                <th class="col-rez" title="REZ s kaznama">REZ</th>
-                <th class="col-num">&#127945;</th>
-                <th class="col-num">&#127946;</th>
-                <th class="col-num">&#127947;</th>
-                <th class="col-num">&#128169;</th>
-              </tr>
-            </thead>
+            <thead><tr>${headerCells}</tr></thead>
             <tbody>${rows}</tbody>
           </table>
         </div>
