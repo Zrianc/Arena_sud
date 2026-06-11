@@ -309,7 +309,7 @@ function renderKola() {
     round.games.forEach((_, gi) => {
       headerCells += `<th class="col-num">P${gi + 1}</th>`;
     });
-    headerCells += `<th class="col-num" title="Muhe">&#129336;</th>`;
+    headerCells += `<th class="col-num" title="Muhe">\uD83E\uDEB0</th>`;
 
     // Redovi po igračima
     let rows = '';
@@ -339,8 +339,8 @@ function renderKola() {
       });
 
       const muheStr = ukupnoMuhe > 0
-        ? `<span style="color:var(--ghost-red);font-weight:700;">${ukupnoMuhe}</span>`
-        : `<span style="color:var(--text-dim);">0</span>`;
+        ? `<span style="color:var(--ghost-red);font-weight:700;">${'\uD83E\uDEB0'.repeat(ukupnoMuhe)}</span>`
+        : `<span style="color:var(--text-dim);">—</span>`;
 
       rows += `
         <tr>
@@ -356,28 +356,7 @@ function renderKola() {
         </tr>`;
     });
 
-    // Igrači koji nisu bili — na dnu
-    state.players.forEach((p) => {
-      let played = false;
-      for (const game of round.games) {
-        if (!game) continue;
-        if ([game.p1, game.p2, game.p3, game.drek].includes(p.id)) { played = true; break; }
-      }
-      if (played) return;
-      const emptyCells = round.games.map(() => `<td class="hist-cell hist-empty" style="color:var(--text-dim);">—</td>`).join('');
-      rows += `
-        <tr style="opacity:0.45;">
-          <td class="col-rank sticky-col"><span class="rank-badge rank-other">—</span></td>
-          <td class="col-name sticky-col2">
-            <div class="player-name-cell">
-              <span class="player-dot ${p.color}"></span>
-              <span>${escHtml(p.name)}</span>
-            </div>
-          </td>
-          ${emptyCells}
-          <td class="col-num" style="color:var(--text-dim);">—</td>
-        </tr>`;
-    });
+
 
     section.innerHTML = `
       <div class="kolo-tablica-header">
