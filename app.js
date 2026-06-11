@@ -442,9 +442,7 @@ function buildPartijaCard(num) {
 
 function updatePositionInputs(partijaNum, posIdx) {
   const type = document.querySelector(`.pos-type[data-partija="${partijaNum}"][data-pos="${posIdx}"]`).value;
-  const place = document.querySelector(`.pos-place[data-partija="${partijaNum}"][data-pos="${posIdx}"]`).value;
   const playersContainer = document.getElementById(`pos-players-${partijaNum}-${posIdx}`);
-  const muheRow = document.getElementById(`pos-muhe-${partijaNum}-${posIdx}`);
 
   const playerOpts = state.players.map(p => `<option value="${p.id}">${escHtml(p.name)}</option>`).join('');
   const emptyOpt = `<option value="">-- odaberi --</option>`;
@@ -455,9 +453,6 @@ function updatePositionInputs(partijaNum, posIdx) {
     html += `<select class="form-input pos-player-${i}" data-partija="${partijaNum}" data-pos="${posIdx}" style="margin-bottom:4px;">${emptyOpt}${playerOpts}</select>`;
   }
   playersContainer.innerHTML = html;
-
-  // Muhe samo za drek
-  muheRow.style.display = place === '4' ? 'block' : 'none';
 }
 
 function collectRoundData() {
