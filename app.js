@@ -280,8 +280,39 @@ function rebuildHistoryHeaders() {
 }
 
 // =====================
-// TABLICA PO KOLIMA
+// TABLICA PO KOLIMA (kumulativna)
 // =====================
+function computePlayerStatsThroughRound(playerId, roundsSubset) {
+  const s = { partije: 0, bodovi: 0, p1: 0, p2: 0, p3: 0, drekovi: 0, muhe: 0, kola: 0, propustena: 0 };
+  const kolaSet = new Set();
+  for (const round of roundsSubset) {
+    let playedThisRound = false;
+    for (const game of round.games) {
+      if (!game) continue;
+      let place = null, m = 0;
+      if (game.p1 === playerId) place = 1;
+      else if (game.p2 === playerId) place = 2;
+      else if (game.p3 === playerId) place = 3;
+      else if (game.drek === playerId) { place = 4; m = game.muhe || 0; }
+      if (place !== null) {
+        s.partije++; s.bodovi += place;
+        if (place === 1) s.p1++;
+        else if (place === 2) s.p2++;
+        else if (place === 3) s.p3++;
+        else { s.drekovi++; s.muhe += m; }
+        playedThisRound = true;
+      }
+    }
+    if (playedThisRound) kolaSet.add(round.id);
+  }
+  s.kola = kolaSet.size;
+  s.propustena = roundsSubset.length - s.kola;
+  s.kazna = s.propustena * 1;
+  const prosjek = s.partije > 0 ? s.bodovi / s.partije : 0;
+  s.rez = s.partije > 0 ? prosjek + s.kazna : null;
+  return s;
+}
+
 function renderKola() {
   const wrap = document.getElementById('kolaTablesWrap');
   const empty = document.getElementById('kolaEmpty');
@@ -294,34 +325,35 @@ function renderKola() {
   empty.style.display = 'none';
   wrap.innerHTML = '';
 
-  [...state.rounds].reverse().forEach((round, revIdx) => {
+  // Prikaži od najnovijeg prema najstarijem — svako kolo = kumulativna tablica K1..Kn
+  [...state.rounds].reverse().forEach((round) => {
     const realIdx = state.rounds.indexOf(round);
+    const roundsUpTo = state.rounds.slice(0, realIdx + 1);
     const roundName = round.name || `Kolo ${realIdx + 1}`;
     const fmtDate = round.date ? formatDate(round.date) : '';
-    const players = sortedPlayersByRound(round);
+
+    const players = [...state.players]
+      .map(p => ({ ...p, cs: computePlayerStatsThroughRound(p.id, roundsUpTo) }))
+      .sort((a, b) => {
+        const as = a.cs, bs = b.cs;
+        if (as.partije === 0 && bs.partije === 0) return 0;
+        if (as.partije === 0) return 1;
+        if (bs.partije === 0) return -1;
+        if (as.rez !== bs.rez) return as.rez - bs.rez;
+        if (as.p1 !== bs.p1) return bs.p1 - as.p1;
+        if (as.drekovi !== bs.drekovi) return as.drekovi - bs.drekovi;
+        return bs.partije - as.partije;
+      });
 
     const section = document.createElement('div');
     section.className = 'kolo-tablica-wrap';
 
     let rows = '';
     players.forEach((p, idx) => {
-      const rs = p.rs;
-      if (!rs.played) {
-        rows += `
-          <tr>
-            <td class="col-rank sticky-col"><span class="rank-badge rank-other">—</span></td>
-            <td class="col-name sticky-col2">
-              <div class="player-name-cell">
-                <span class="player-dot ${p.color}"></span>
-                <span>${escHtml(p.name)}</span>
-              </div>
-            </td>
-            <td class="col-num" colspan="7" style="color:var(--text-dim);font-size:.8rem;">&#129340; Nije sudjelovao</td>
-          </tr>`;
-        return;
-      }
+      const cs = p.cs;
       const rank = idx + 1;
-      let rezClass = rs.rez <= 2 ? 'rez-good' : rs.rez <= 3 ? 'rez-mid' : 'rez-bad';
+      const rezClass = cs.rez !== null ? (cs.rez <= 2 ? 'rez-good' : cs.rez <= 3 ? 'rez-mid' : 'rez-bad') : '';
+      const kaznaStr = cs.kazna > 0 ? `<span style="color:var(--ghost-red);">+${cs.kazna.toFixed(2)}</span>` : `<span style="color:var(--text-dim);">—</span>`;
       rows += `
         <tr>
           <td class="col-rank sticky-col"><span class="rank-badge rank-${rank <= 3 ? rank : 'other'}">${rank}</span></td>
@@ -331,20 +363,26 @@ function renderKola() {
               <span>${escHtml(p.name)}</span>
             </div>
           </td>
-          <td class="col-num">${rs.partije}</td>
-          <td class="col-num">${rs.bodovi}</td>
-          <td class="col-rez ${rezClass}">${rs.rez !== null ? rs.rez.toFixed(2) : '—'}</td>
-          <td class="col-num">${rs.p1}</td>
-          <td class="col-num">${rs.p2}</td>
-          <td class="col-num">${rs.p3}</td>
-          <td class="col-num">${rs.drekovi}</td>
+          <td class="col-num">${cs.kola}</td>
+          <td class="col-num" style="color:var(--ghost-red)">${cs.propustena > 0 ? cs.propustena : '—'}</td>
+          <td class="col-num">${cs.partije}</td>
+          <td class="col-num">${cs.bodovi}</td>
+          <td class="col-num">${kaznaStr}</td>
+          <td class="col-rez ${rezClass}">${cs.rez !== null ? cs.rez.toFixed(2) : '—'}</td>
+          <td class="col-num">${cs.p1}</td>
+          <td class="col-num">${cs.p2}</td>
+          <td class="col-num">${cs.p3}</td>
+          <td class="col-num">${cs.drekovi}</td>
         </tr>`;
     });
 
     section.innerHTML = `
       <div class="kolo-tablica-header">
-        <span class="kolo-title">${escHtml(roundName)}</span>
-        ${fmtDate ? `<span class="kolo-date"> · ${fmtDate}</span>` : ''}
+        <div>
+          <span class="kolo-title">Tablica nakon: ${escHtml(roundName)}</span>
+          ${fmtDate ? `<span class="kolo-date"> · ${fmtDate}</span>` : ''}
+        </div>
+        <span style="font-size:.62rem;color:var(--text-dim);font-family:var(--font-mono);">K1 – K${realIdx + 1}</span>
       </div>
       <div class="table-wrap" style="margin-bottom:0;">
         <div class="scroll-container">
@@ -353,13 +391,16 @@ function renderKola() {
               <tr>
                 <th class="col-rank sticky-col">#</th>
                 <th class="col-name sticky-col2">Igrač</th>
+                <th class="col-num" title="Dolasci">Dol.</th>
+                <th class="col-num" title="Propuštena">Prop.</th>
                 <th class="col-num" title="Partije">Part.</th>
                 <th class="col-num" title="Bodovi">Bod</th>
-                <th class="col-rez" title="REZ kola">REZ</th>
-                <th class="col-num" title="Pobjede">🥇</th>
-                <th class="col-num" title="Druga mjesta">🥈</th>
-                <th class="col-num" title="Treća mjesta">🥉</th>
-                <th class="col-num" title="Drekovi">💩</th>
+                <th class="col-num" title="Kazna">Kaz.</th>
+                <th class="col-rez" title="REZ s kaznama">REZ</th>
+                <th class="col-num">&#127945;</th>
+                <th class="col-num">&#127946;</th>
+                <th class="col-num">&#127947;</th>
+                <th class="col-num">&#128169;</th>
               </tr>
             </thead>
             <tbody>${rows}</tbody>
