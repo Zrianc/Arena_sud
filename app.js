@@ -339,8 +339,8 @@ function renderKola() {
       });
 
       const muheStr = ukupnoMuhe > 0
-        ? `<span style="color:var(--ghost-red);font-weight:700;">${'\uD83E\uDEB0'.repeat(ukupnoMuhe)}</span>`
-        : `<span style="color:var(--text-dim);">—</span>`;
+        ? `<span style="color:var(--ghost-red);font-weight:700;">${ukupnoMuhe}</span>`
+        : `<span style="color:var(--text-dim);">0</span>`;
 
       rows += `
         <tr>
