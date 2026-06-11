@@ -243,16 +243,32 @@ function renderTable() {
 }
 
 function computeDrekStreak(playerId) {
-  // Prolazi kroz sve partije kronološkim redom i broji uzastopne drekove
+  // Streak po kolu — ako je igrač bio ZADNJI po REZ-u u kolu = 1 drek
   let streak = 0;
   for (const round of state.rounds) {
-    for (const game of round.games) {
-      if (!game) continue;
-      const result = getPlayerPlaceInGame(playerId, game);
-      if (result === null) continue; // nije igrao tu partiju
-      if (result.place === 4) streak++;
-      else streak = 0; // prekinuo streak
-    }
+    // Izračunaj REZ svakog igrača za ovo kolo
+    const roundStats = state.players.map(p => {
+      let bodovi = 0, partije = 0;
+      for (const game of round.games) {
+        if (!game) continue;
+        const result = getPlayerPlaceInGame(p.id, game);
+        if (result) { bodovi += result.place; partije++; }
+      }
+      return { id: p.id, rez: partije > 0 ? bodovi / partije : null };
+    }).filter(p => p.rez !== null); // samo koji su igrali
+
+    if (roundStats.length === 0) continue;
+
+    // Je li ovaj igrač igrao u ovom kolu?
+    const playerStat = roundStats.find(p => p.id === playerId);
+    if (!playerStat) continue; // nije igrao, ne broji ni za ni protiv
+
+    // Je li zadnji (najveći REZ)?
+    const maxRez = Math.max(...roundStats.map(p => p.rez));
+    const isLast = playerStat.rez === maxRez;
+
+    if (isLast) streak++;
+    else streak = 0;
   }
   return streak;
 }
