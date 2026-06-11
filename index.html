@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>🟡 Čovječe Liga</title>
   <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Emoji&display=swap" />
 </head>
 <body>
   <!-- PAC-MAN HEADER -->
@@ -42,7 +43,7 @@
     <section class="view active" id="view-tablica">
       <div class="view-header">
         <h2><span class="ghost ghost-red">👻</span> Liga Tablica <span class="ghost ghost-blue">👻</span></h2>
-        <div class="league-name-wrap">
+        <div class="sync-bar"><span id="syncStatus" style="font-size:.7rem;font-family:var(--font-mono);color:var(--neon-blue);">⏳ Učitavanje...</span><button class="btn btn-sm btn-ghost" id="refreshBtn" style="padding:3px 8px;font-size:.7rem;">🔄 Osvježi</button></div><div class="league-name-wrap">
           <span id="leagueName" class="league-name-display"></span>
         </div>
       </div>
