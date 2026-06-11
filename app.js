@@ -571,9 +571,10 @@ function collectRoundData() {
     let valid = true;
 
     for (let pos = 0; pos < 4; pos++) {
+      const place = pos + 1; // fiksno: 0=1.mj, 1=2.mj, 2=3.mj, 3=drek
       const type = card.querySelector(`.pos-type[data-pos="${pos}"]`).value;
-      const place = parseInt(card.querySelector(`.pos-place[data-pos="${pos}"]`).value);
-      const muhe = parseInt(card.querySelector(`.pos-muhe[data-pos="${pos}"]`)?.value || 0);
+      const muheEl = card.querySelector(`.pos-muhe[data-pos="${pos}"]`);
+      const muhe = place === 4 ? parseInt(muheEl?.value || 0) : 0;
       const count = type === 'solo' ? 1 : type === 'par' ? 2 : 3;
 
       const players = [];
@@ -585,17 +586,10 @@ function collectRoundData() {
         players.push(sel.value);
       }
       if (!valid) break;
-      positions.push({ players, place, muhe: place === 4 ? muhe : 0 });
+      positions.push({ players, place, muhe });
     }
 
     if (!valid) continue;
-
-    // Provjeri da su sva 4 mjesta popunjena (1,2,3,4)
-    const places = positions.map(p => p.place).sort();
-    if (JSON.stringify(places) !== JSON.stringify([1,2,3,4])) {
-      errors.push(`Partija ${i}: mjesta moraju biti 1, 2, 3 i 4`); continue;
-    }
-
     games.push({ positions });
   }
 
