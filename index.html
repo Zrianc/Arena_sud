@@ -1,212 +1,339 @@
 <!DOCTYPE html>
-<html lang="hr" data-theme="dark">
+<html lang="hr">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🎲 Liga Arena Sud - ČKRS</title>
-  <link rel="stylesheet" href="style.css" />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" />
+  <title>Liga Arena Sud - ČKRS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Orbitron:wght@400;700;900&display=swap">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #05050f;
+      color: #f0f0ff;
+      font-family: 'Orbitron', monospace;
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ===== MAZE BACKGROUND ===== */
+    .maze-bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+    .maze-bg::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(0,212,255,0.04) 39px, rgba(0,212,255,0.04) 40px),
+        repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(0,212,255,0.04) 39px, rgba(0,212,255,0.04) 40px);
+    }
+
+    /* Floating dots */
+    .dot-field {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
+    .fdot {
+      position: absolute;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #FFD700;
+      opacity: 0;
+      animation: floatDot var(--dur) var(--delay) infinite ease-in-out;
+    }
+    @keyframes floatDot {
+      0% { opacity: 0; transform: translateY(0); }
+      20% { opacity: 0.6; }
+      80% { opacity: 0.3; }
+      100% { opacity: 0; transform: translateY(-60px); }
+    }
+
+    /* ===== MAIN CONTENT ===== */
+    .page {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 40px 20px;
+      gap: 40px;
+    }
+
+    /* ===== PAC-MAN ANIMATION ===== */
+    .pacman-scene {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin-bottom: 10px;
+    }
+    .pacman {
+      font-size: 3.5rem;
+      color: #FFD700;
+      text-shadow: 0 0 20px rgba(255,215,0,0.6), 0 0 40px rgba(255,215,0,0.3);
+      animation: chomp 0.35s infinite alternate;
+      display: inline-block;
+      line-height: 1;
+    }
+    @keyframes chomp {
+      from { transform: scaleX(1); }
+      to { transform: scaleX(0.8); }
+    }
+    .pac-dots {
+      display: flex;
+      gap: 14px;
+      padding: 0 12px;
+      align-items: center;
+    }
+    .pac-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: #FFD700;
+      animation: eatDot 1.4s infinite;
+    }
+    .pac-dot:nth-child(1) { animation-delay: 0s; }
+    .pac-dot:nth-child(2) { animation-delay: 0.2s; }
+    .pac-dot:nth-child(3) { animation-delay: 0.4s; }
+    .pac-dot:nth-child(4) { animation-delay: 0.6s; }
+    .pac-dot:nth-child(5) { animation-delay: 0.8s; }
+    @keyframes eatDot {
+      0%, 60%, 100% { opacity: 0.8; transform: scale(1); }
+      30% { opacity: 0; transform: scale(0); }
+    }
+    .ghost-row {
+      display: flex;
+      gap: 8px;
+      font-size: 2rem;
+      animation: ghostFloat 2s infinite ease-in-out;
+    }
+    @keyframes ghostFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    /* ===== LOGO & TITLE ===== */
+    .title-wrap {
+      text-align: center;
+    }
+    .league-title {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(1.2rem, 5vw, 2.2rem);
+      color: #FFD700;
+      text-shadow: 0 0 20px rgba(255,215,0,0.5), 3px 3px 0 #8B6000;
+      letter-spacing: 2px;
+      line-height: 1.4;
+      margin-bottom: 12px;
+    }
+    .league-subtitle {
+      font-size: clamp(0.5rem, 2vw, 0.7rem);
+      color: #00d4ff;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      text-shadow: 0 0 10px rgba(0,212,255,0.5);
+    }
+
+    /* ===== DIVIDER ===== */
+    .neon-line {
+      width: 100%;
+      max-width: 500px;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #FFD700, #00d4ff, #FFD700, transparent);
+      box-shadow: 0 0 10px rgba(255,215,0,0.4);
+    }
+
+    /* ===== INFO CARDS ===== */
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      width: 100%;
+      max-width: 700px;
+    }
+    .info-card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,215,0,0.2);
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      backdrop-filter: blur(4px);
+      transition: all 0.3s ease;
+    }
+    .info-card:hover {
+      border-color: rgba(255,215,0,0.5);
+      background: rgba(255,215,0,0.06);
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(255,215,0,0.15);
+    }
+    .info-card .icon { font-size: 2rem; margin-bottom: 10px; display: block; }
+    .info-card h3 {
+      font-size: 0.65rem;
+      color: #FFD700;
+      letter-spacing: 2px;
+      margin-bottom: 6px;
+    }
+    .info-card p {
+      font-size: 0.6rem;
+      color: #8888aa;
+      line-height: 1.6;
+      font-family: system-ui, sans-serif;
+    }
+
+    /* ===== ENTER BUTTON ===== */
+    .enter-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding: 18px 48px;
+      background: #FFD700;
+      color: #000;
+      text-decoration: none;
+      border-radius: 8px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.6rem, 2vw, 0.85rem);
+      font-weight: 700;
+      letter-spacing: 2px;
+      box-shadow: 0 0 20px rgba(255,215,0,0.5), 0 0 40px rgba(255,215,0,0.2), 4px 4px 0 #8B6000;
+      transition: all 0.2s ease;
+      animation: pulse 2s infinite ease-in-out;
+      cursor: pointer;
+      border: none;
+    }
+    .enter-btn:hover {
+      transform: translateY(-3px) scale(1.03);
+      box-shadow: 0 0 30px rgba(255,215,0,0.7), 0 0 60px rgba(255,215,0,0.3), 4px 4px 0 #8B6000;
+    }
+    .enter-btn:active { transform: translateY(0) scale(0.98); }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 20px rgba(255,215,0,0.5), 0 0 40px rgba(255,215,0,0.2), 4px 4px 0 #8B6000; }
+      50% { box-shadow: 0 0 30px rgba(255,215,0,0.7), 0 0 60px rgba(255,215,0,0.35), 4px 4px 0 #8B6000; }
+    }
+    .btn-pac { font-size: 1.4rem; animation: chomp 0.35s infinite alternate; display: inline-block; }
+
+    /* ===== FOOTER ===== */
+    .footer {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      padding: 20px;
+      font-size: 0.5rem;
+      color: #333355;
+      letter-spacing: 2px;
+    }
+
+    /* ===== SCANLINES ===== */
+    .scanlines {
+      position: fixed;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.08) 2px,
+        rgba(0,0,0,0.08) 4px
+      );
+    }
+
+    @media (max-width: 480px) {
+      .info-grid { grid-template-columns: 1fr 1fr; }
+      .enter-btn { padding: 14px 32px; }
+    }
+  </style>
 </head>
 <body>
-  <header class="site-header">
-    <div class="header-inner">
-      <div class="logo">
-        <span class="pacman-icon">ᗤ</span>
-        <div class="logo-text">
-          <span class="logo-title">LIGA ARENA SUD</span>
-          <span class="logo-sub">NE LJUTI SE</span>
+
+  <div class="maze-bg"></div>
+  <div class="dot-field" id="dotField"></div>
+  <div class="scanlines"></div>
+
+  <main class="page">
+
+    <!-- PAC-MAN SCENE -->
+    <div style="display:flex;flex-direction:column;align-items:center;gap:16px;">
+      <div class="pacman-scene">
+        <span class="pacman">ᗤ</span>
+        <div class="pac-dots">
+          <span class="pac-dot"></span>
+          <span class="pac-dot"></span>
+          <span class="pac-dot"></span>
+          <span class="pac-dot"></span>
+          <span class="pac-dot"></span>
         </div>
-        <div class="dots-row">
-          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <div class="ghost-row">
+          <span>👻</span><span style="animation-delay:.3s;display:inline-block;">👻</span>
         </div>
       </div>
-      <nav class="main-nav">
-        <button class="nav-btn active" data-view="tablica">🏆 Tablica</button>
-        <button class="nav-btn" data-view="kola">📊 Kola</button>
-        <button class="nav-btn" data-view="novo-kolo">➕ Novo kolo</button>
-        <button class="nav-btn" data-view="povijest">📋 Povijest</button>
-        <button class="nav-btn" data-view="igraci">👥 Igrači</button>
-        <button class="nav-btn" data-view="postavke">⚙️ Postavke</button>
-      </nav>
-      <button class="theme-toggle" id="themeToggle" title="Dark/Light mode">🌙</button>
     </div>
-    <div class="maze-bar">
-      <div class="maze-dots" id="mazeDots"></div>
+
+    <!-- TITLE -->
+    <div class="title-wrap">
+      <div class="league-title">LIGA<br>ARENA SUD</div>
+      <div class="league-subtitle">Čista Klošarska Republikanska Stranka</div>
     </div>
-  </header>
 
-  <main class="main-content">
+    <div class="neon-line"></div>
 
-    <!-- UKUPNA TABLICA -->
-    <section class="view active" id="view-tablica">
-      <div class="view-header">
-        <h2><span class="ghost ghost-red">👻</span> Ukupna Tablica <span class="ghost ghost-blue">👻</span></h2>
-        <div class="sync-bar">
-          <span id="syncStatus" style="font-size:.7rem;font-family:var(--font-mono);color:var(--neon-blue);">⏳ Učitavanje...</span>
-          <button class="btn btn-sm btn-ghost" id="refreshBtn" style="padding:3px 8px;font-size:.7rem;">🔄</button>
-        </div>
-        <div class="league-name-wrap">
-          <span id="leagueName" class="league-name-display"></span>
-        </div>
+    <!-- INFO CARDS -->
+    <div class="info-grid">
+      <div class="info-card">
+        <span class="icon">🎲</span>
+        <h3>Čovječe ne ljuti se</h3>
+        <p>Natjecanje u legendarnoj igri. Svaki potez je borba za preživljavanje.</p>
       </div>
-      <div class="penalty-info card" style="margin-bottom:14px;padding:10px 16px;">
-        <span style="font-size:.75rem;color:var(--text-secondary);">ℹ️ REZ uključuje kaznu: <strong style="color:var(--ghost-red);">+1 bod</strong> za svako propušteno kolo</span>
+      <div class="info-card">
+        <span class="icon">🏆</span>
+        <h3>Liga sustav</h3>
+        <p>Kola, partije, bodovi, REZ. Tko je stvarno najbolji — tablica zna.</p>
       </div>
-      <div class="table-wrap">
-        <div class="scroll-container">
-          <table class="liga-table" id="ligaTable">
-            <thead>
-              <tr>
-                <th class="col-rank sticky-col">#</th>
-                <th class="col-name sticky-col2">Igrač</th>
-                <th class="col-title">🏅</th>
-                <th class="col-num" title="Ukupno kola">K</th>
-                <th class="col-num" title="Dolasci">Dol.</th>
-                <th class="col-num" title="Propuštena">Prop.</th>
-                <th class="col-num" title="Partije">Part.</th>
-                <th class="col-num" title="Bodovi">Bod</th>
-                <th class="col-num" title="Kazna">Kaz.</th>
-                <th class="col-rez" title="REZ">REZ</th>
-                <th class="col-num">🥇</th>
-                <th class="col-num">🥈</th>
-                <th class="col-num">🥉</th>
-                <th class="col-num">💩</th>
-                <th class="col-num">🪰</th>
-                <th class="col-history history-header" id="historyHeaderRow"></th>
-              </tr>
-            </thead>
-            <tbody id="ligaTableBody"></tbody>
-          </table>
-        </div>
+      <div class="info-card">
+        <span class="icon">💩</span>
+        <h3>Drek streak</h3>
+        <p>5 drekova zaredom? Zaslužuješ sveticu Mariju kraj svog imena.</p>
       </div>
-      <div class="empty-state" id="tablicaEmpty" style="display:none;">
-        <div class="pacman-big">ᗤ · · · ·</div>
-        <p>Nema podataka. Dodaj igrače i unesi prvo kolo!</p>
-        <button class="btn btn-primary" onclick="showView('igraci')">👥 Dodaj igrače</button>
+      <div class="info-card">
+        <span class="icon">🪰</span>
+        <h3>Muhe se broje</h3>
+        <p>Nisi uspio spasiti figure? Svaka figura = jedna muha. Sramota javna.</p>
       </div>
+    </div>
 
-      <!-- DREK STREAK TABLICA -->
-      <div id="drekStreakWrap" style="margin-top:20px;display:none;"></div>
-    </section>
-
-    <!-- TABLICA PO KOLIMA -->
-    <section class="view" id="view-kola">
-      <div class="view-header">
-        <h2><span class="ghost ghost-red">👻</span> Tablica po Kolima</h2>
-      </div>
-      <div id="kolaTablesWrap"></div>
-      <div class="empty-state" id="kolaEmpty" style="display:none;">
-        <div class="pacman-big">ᗤ · · · ·</div>
-        <p>Nema odigranih kola.</p>
-      </div>
-    </section>
-
-    <!-- NOVO KOLO -->
-    <section class="view" id="view-novo-kolo">
-      <div class="view-header">
-        <h2>👻 Novo Kolo</h2>
-      </div>
-      <div class="round-form-wrap" id="roundFormWrap">
-        <div class="round-meta">
-          <div class="form-group">
-            <label>Datum kola</label>
-            <input type="date" id="newRoundDate" class="form-input" />
-          </div>
-          <div class="form-group">
-            <label>Naziv kola</label>
-            <input type="text" id="newRoundName" class="form-input" placeholder="npr. Kolo 5" />
-          </div>
-        </div>
-        <div id="partijeForms"></div>
-        <div class="form-actions">
-          <button class="btn btn-primary" id="saveRoundBtn">💾 Spremi kolo</button>
-          <button class="btn btn-ghost" onclick="showView('tablica')">Odustani</button>
-        </div>
-      </div>
-      <div class="empty-state" id="noPlayersMsg" style="display:none;">
-        <div class="pacman-big">ᗤ · · · ·</div>
-        <p>Nema dovoljno igrača. Treba minimalno 4.</p>
-        <button class="btn btn-primary" onclick="showView('igraci')">👥 Dodaj igrače</button>
-      </div>
-    </section>
-
-    <!-- POVIJEST -->
-    <section class="view" id="view-povijest">
-      <div class="view-header">
-        <h2>👻 Povijest Kola</h2>
-      </div>
-      <div id="povijestList"></div>
-      <div class="empty-state" id="povijestEmpty" style="display:none;">
-        <div class="pacman-big">ᗤ · · · ·</div>
-        <p>Nema odigranih kola.</p>
-      </div>
-    </section>
-
-    <!-- IGRAČI -->
-    <section class="view" id="view-igraci">
-      <div class="view-header">
-        <h2>👻 Upravljanje Igračima</h2>
-      </div>
-      <div class="players-layout">
-        <div class="add-player-card card">
-          <h3>➕ Dodaj igrača</h3>
-          <div class="form-group">
-            <label>Ime igrača</label>
-            <input type="text" id="newPlayerName" class="form-input" placeholder="npr. Luka" maxlength="40" />
-          </div>
-          <button class="btn btn-primary" id="addPlayerBtn">➕ Dodaj</button>
-          <p class="hint">Minimalno 4 igrača. Par/trio se bira pri unosu kola.</p>
-        </div>
-        <div class="players-list-card card">
-          <h3>👥 Igrači u ligi</h3>
-          <div id="playersList"></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- POSTAVKE -->
-    <section class="view" id="view-postavke">
-      <div class="view-header">
-        <h2>👻 Postavke & Podaci</h2>
-      </div>
-      <div class="settings-grid">
-        <div class="card">
-          <h3>🏆 Naziv lige</h3>
-          <div class="form-group">
-            <input type="text" id="leagueNameInput" class="form-input" placeholder="Naziv vaše lige..." />
-          </div>
-          <button class="btn btn-primary" id="saveLeagueNameBtn">Spremi naziv</button>
-        </div>
-        <div class="card">
-          <h3>💾 Export / Import</h3>
-          <div class="btn-group">
-            <button class="btn btn-secondary" id="exportBtn">📤 Export JSON</button>
-            <label class="btn btn-secondary" style="cursor:pointer;">
-              📥 Import JSON
-              <input type="file" id="importFile" accept=".json" style="display:none;" />
-            </label>
-          </div>
-        </div>
-        <div class="card danger-card">
-          <h3>⚠️ Reset lige</h3>
-          <p>Briše SVE podatke. Nepovratno!</p>
-          <button class="btn btn-danger" id="resetBtn">🗑️ Reset lige</button>
-        </div>
-      </div>
-    </section>
+    <!-- ENTER BUTTON -->
+    <a href="app.html" class="enter-btn">
+      <span class="btn-pac">ᗤ</span>
+      ULAZ U LIGU
+    </a>
 
   </main>
 
-  <!-- MODAL: STATISTIKA IGRAČA -->
-  <div class="modal-overlay" id="playerModal">
-    <div class="modal-box">
-      <button class="modal-close" id="modalClose">✕</button>
-      <div id="playerModalContent"></div>
-    </div>
-  </div>
+  <footer class="footer">
+    © ČKRS · Liga Arena Sud · Powered by Pac-Man energijom
+  </footer>
 
-  <div class="toast" id="toast"></div>
-  <script src="app.js?v=12"></script>
+  <script>
+    // Generate floating dots
+    const field = document.getElementById('dotField');
+    for (let i = 0; i < 40; i++) {
+      const d = document.createElement('span');
+      d.className = 'fdot';
+      d.style.left = Math.random() * 100 + 'vw';
+      d.style.top = Math.random() * 100 + 'vh';
+      d.style.setProperty('--dur', (3 + Math.random() * 4) + 's');
+      d.style.setProperty('--delay', (Math.random() * 4) + 's');
+      field.appendChild(d);
+    }
+  </script>
+
 </body>
 </html>
