@@ -116,12 +116,11 @@ function computePlayerStats(playerId) {
   return s;
 }
 
-function getTitle(stats) {
+function getTitle(stats, rank, totalPlayers) {
   if (stats.partije === 0) return '';
+  if (rank === 1) return '🏆';
+  if (rank === totalPlayers) return '💩';
   if (stats.rez !== null && stats.rez <= 1.5) return '👑';
-  if (stats.p1 >= 5) return '🏆';
-  if (stats.drekovi >= 5) return '💩';
-  if (stats.muhe >= 10) return '🪰';
   return '';
 }
 
@@ -221,7 +220,6 @@ function renderTable() {
       <td class="col-name sticky-col2">
         <div class="player-name-cell"><span>${escHtml(p.name)}${saintIcon}</span></div>
       </td>
-      <td class="col-title"><span class="title-badge">${getTitle(s)}</span></td>
       <td class="col-num">${state.rounds.length}</td>
       <td class="col-num">${s.kola}</td>
       <td class="col-num" style="color:var(--ghost-red)">${s.propustena > 0 ? s.propustena : '—'}</td>
@@ -345,7 +343,7 @@ function rebuildHistoryHeaders() {
   const thead = table.querySelector('thead');
   const headerRow = thead.querySelector('tr');
   const allTh = headerRow.querySelectorAll('th');
-  for (let i = allTh.length - 1; i >= 15; i--) allTh[i].remove();
+  for (let i = allTh.length - 1; i >= 14; i--) allTh[i].remove();
   state.rounds.forEach((round, i) => {
     const th = document.createElement('th');
     th.className = 'hist-cell hist-label';
