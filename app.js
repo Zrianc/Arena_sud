@@ -904,6 +904,7 @@ async function init() {
   });
 
 
+  document.getElementById('addPlayerBtn').addEventListener('click', addPlayer);
   document.getElementById('newPlayerName').addEventListener('keydown', e => { if (e.key === 'Enter') addPlayer(); });
   document.getElementById('saveRoundBtn').addEventListener('click', async () => {
     const result = collectRoundData();
