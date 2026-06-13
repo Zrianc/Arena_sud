@@ -25,12 +25,15 @@
       <nav class="main-nav">
         <button class="nav-btn active" data-view="tablica">🏆 Tablica</button>
         <button class="nav-btn" data-view="kola">📊 Kola</button>
-        <button class="nav-btn" data-view="novo-kolo">➕ Novo kolo</button>
         <button class="nav-btn" data-view="povijest">📋 Povijest</button>
-        <button class="nav-btn" data-view="igraci">👥 Igrači</button>
-        <button class="nav-btn" data-view="postavke">⚙️ Postavke</button>
+        <button class="nav-btn admin-only" data-view="novo-kolo" style="display:none;">➕ Novo kolo</button>
+        <button class="nav-btn admin-only" data-view="igraci" style="display:none;">👥 Igrači</button>
+        <button class="nav-btn admin-only" data-view="postavke" style="display:none;">⚙️ Postavke</button>
       </nav>
-      <button class="theme-toggle" id="themeToggle" title="Dark/Light mode">🌙</button>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button class="btn btn-sm" id="adminBtn" style="background:transparent;border:1px solid var(--border);color:var(--text-secondary);font-size:.75rem;">🔐 Admin</button>
+        <button class="theme-toggle" id="themeToggle" title="Dark/Light mode">🌙</button>
+      </div>
     </div>
     <div class="maze-bar">
       <div class="maze-dots" id="mazeDots"></div>
@@ -206,7 +209,19 @@
     </div>
   </div>
 
+  <!-- MODAL: ADMIN PIN -->
+  <div class="modal-overlay" id="adminModal">
+    <div class="modal-box" style="max-width:340px;text-align:center;">
+      <button class="modal-close" id="adminModalClose">✕</button>
+      <div style="font-size:2rem;margin-bottom:12px;">🔐</div>
+      <h3 style="font-family:var(--font-display);color:var(--pac-yellow);font-size:.8rem;margin-bottom:16px;" id="adminModalTitle">ADMIN PRIJAVA</h3>
+      <input type="password" id="adminPinInput" class="form-input" placeholder="Unesite PIN..." style="text-align:center;font-size:1.2rem;letter-spacing:6px;margin-bottom:12px;" maxlength="20" />
+      <button class="btn btn-primary" id="adminPinSubmit" style="width:100%;">Prijava</button>
+      <p id="adminPinError" style="color:var(--ghost-red);font-size:.75rem;margin-top:8px;display:none;">Pogrešan PIN!</p>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
-  <script src="app.js?v=13"></script>
+  <script src="app.js?v=14"></script>
 </body>
 </html>

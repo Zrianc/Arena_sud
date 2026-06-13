@@ -139,9 +139,64 @@ function sortedPlayers() {
 }
 
 // =====================
-// VIEWS
+// ADMIN AUTH
 // =====================
+const ADMIN_PIN = 'CKRS2026'; // Promijeni ovo u svoj PIN!
+let isAdmin = false;
+
+function setAdminMode(active) {
+  isAdmin = active;
+  // Prikaži/sakrij admin gumbe u navigaciji
+  document.querySelectorAll('.admin-only').forEach(el => {
+    el.style.display = active ? 'inline-flex' : 'none';
+  });
+  const adminBtn = document.getElementById('adminBtn');
+  if (adminBtn) {
+    adminBtn.textContent = active ? '🔓 Admin' : '🔐 Admin';
+    adminBtn.style.borderColor = active ? 'var(--color-green)' : 'var(--border)';
+    adminBtn.style.color = active ? 'var(--color-green)' : 'var(--text-secondary)';
+  }
+  // Ako se odjavljuje a bio je na admin viewu, vrati na tablicu
+  if (!active && ['novo-kolo', 'igraci', 'postavke'].includes(currentView)) {
+    showView('tablica');
+  }
+}
+
+function openAdminModal() {
+  if (isAdmin) {
+    // Već prijavljen — odjava
+    if (confirm('Odjavi se iz admin načina?')) {
+      setAdminMode(false);
+      showToast('Odjavljeni ste iz admin načina');
+    }
+    return;
+  }
+  document.getElementById('adminModal').classList.add('open');
+  document.getElementById('adminPinInput').value = '';
+  document.getElementById('adminPinError').style.display = 'none';
+  setTimeout(() => document.getElementById('adminPinInput').focus(), 100);
+}
+
+function checkAdminPin() {
+  const pin = document.getElementById('adminPinInput').value;
+  if (pin === ADMIN_PIN) {
+    document.getElementById('adminModal').classList.remove('open');
+    setAdminMode(true);
+    showToast('Admin način aktivan! 🔓');
+  } else {
+    document.getElementById('adminPinError').style.display = 'block';
+    document.getElementById('adminPinInput').value = '';
+    document.getElementById('adminPinInput').focus();
+  }
+}
+
+
 function showView(name) {
+  // Zaštiti admin viewove
+  if (['novo-kolo', 'igraci', 'postavke'].includes(name) && !isAdmin) {
+    openAdminModal();
+    return;
+  }
   currentView = name;
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
@@ -830,7 +885,21 @@ async function init() {
     html.setAttribute('data-theme', isLight ? 'dark' : 'light');
     document.getElementById('themeToggle').textContent = isLight ? '🌙' : '☀️';
   });
-  document.getElementById('addPlayerBtn').addEventListener('click', addPlayer);
+  // Admin PIN
+  document.getElementById('adminBtn').addEventListener('click', openAdminModal);
+  document.getElementById('adminModalClose').addEventListener('click', () => {
+    document.getElementById('adminModal').classList.remove('open');
+  });
+  document.getElementById('adminPinSubmit').addEventListener('click', checkAdminPin);
+  document.getElementById('adminPinInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') checkAdminPin();
+  });
+  document.getElementById('adminModal').addEventListener('click', e => {
+    if (e.target === document.getElementById('adminModal'))
+      document.getElementById('adminModal').classList.remove('open');
+  });
+
+
   document.getElementById('newPlayerName').addEventListener('keydown', e => { if (e.key === 'Enter') addPlayer(); });
   document.getElementById('saveRoundBtn').addEventListener('click', async () => {
     const result = collectRoundData();
