@@ -1,6 +1,6 @@
 /* ===== ČOVJEČE LIGA - app.js ===== */
 
-const API_URL = 'https://script.google.com/macros/s/AKfycbzaLXot1Cc4SwywMZEucyG5hYLSVNoE1GlgVxQY0PXFjlF-DJ-4SjK4SXnlJXaJKzg/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzprb801V4E48cTdSt4db8eCeAqIPnZTsI02N2zBR30dBiCazdaGDRLilj_IEBsn6k/exec';
 
 let state = { leagueName: 'Čovječe Liga', players: [], rounds: [] };
 let isSaving = false;
