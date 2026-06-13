@@ -1,6 +1,6 @@
 /* ===== ČOVJEČE LIGA - app.js ===== */
 
-const API_URL = 'https://script.google.com/macros/s/AKfycbzprb801V4E48cTdSt4db8eCeAqIPnZTsI02N2zBR30dBiCazdaGDRLilj_IEBsn6k/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzaLXot1Cc4SwywMZEucyG5hYLSVNoE1GlgVxQY0PXFjlF-DJ-4SjK4SXnlJXaJKzg/exec';
 
 let state = { leagueName: 'Čovječe Liga', players: [], rounds: [] };
 let isSaving = false;
@@ -141,7 +141,7 @@ function sortedPlayers() {
 // =====================
 // ADMIN AUTH
 // =====================
-const ADMIN_PIN = 'CKRS2026'; // Promijeni ovo u svoj PIN!
+const ADMIN_PIN = 'ArenaGoja';
 let isAdmin = false;
 
 function setAdminMode(active) {
@@ -875,6 +875,10 @@ function initMazeDots() {
 // INIT
 // =====================
 async function init() {
+  // Uvijek počni kao gost, admin mora se prijaviti svaki put
+  isAdmin = false;
+  setAdminMode(false);
+
   initMazeDots();
   document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.addEventListener('click', () => showView(btn.dataset.view));
@@ -900,6 +904,7 @@ async function init() {
   });
 
 
+  document.getElementById('addPlayerBtn').addEventListener('click', addPlayer);
   document.getElementById('newPlayerName').addEventListener('keydown', e => { if (e.key === 'Enter') addPlayer(); });
   document.getElementById('saveRoundBtn').addEventListener('click', async () => {
     const result = collectRoundData();
