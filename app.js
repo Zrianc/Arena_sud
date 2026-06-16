@@ -347,19 +347,20 @@ function renderTable() {
 
     let histCells = '';
     state.rounds.forEach(round => {
-      // Koristi plasman u kolu (novi sustav), ne plasman u partiji
       const rankings = getRoundRankings(round);
       const koloRank = rankings[p.id];
-      const totalInRound = Object.keys(rankings).length;
+      const totalInRound = new Set(Object.values(rankings)).size > 0
+        ? Math.max(...Object.values(rankings))
+        : 0;
 
       if (koloRank === undefined) {
         histCells += `<td class="hist-cell hist-empty" title="Nije došao">&#129340;</td>`;
       } else if (koloRank === 1) {
-        histCells += `<td class="hist-cell hist-1">${koloRank}</td>`;
+        histCells += `<td class="hist-cell hist-1">1</td>`;
       } else if (koloRank === totalInRound) {
         histCells += `<td class="hist-cell hist-drek">&#128169;</td>`;
       } else if (koloRank === 2) {
-        histCells += `<td class="hist-cell hist-2">${koloRank}</td>`;
+        histCells += `<td class="hist-cell hist-2">2</td>`;
       } else {
         histCells += `<td class="hist-cell hist-3">${koloRank}</td>`;
       }
