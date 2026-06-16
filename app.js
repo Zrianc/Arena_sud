@@ -102,20 +102,56 @@ function computeRoundRez(playerId, round) {
 }
 
 function getRoundRankings(round) {
-  // Rangiraj sve igrače po REZ-u tog kola, vrati plasman (1,2,3...)
   const standings = state.players
-    .map(p => ({ id: p.id, ...computeRoundRez(p.id, round) }))
+    .map(p => {
+      let bodovi = 0, partije = 0, p1 = 0, p2 = 0, p3 = 0, muhe = 0;
+      for (const game of round.games) {
+        if (!game) continue;
+        const result = getPlayerPlaceInGame(p.id, game);
+        if (result !== null) {
+          bodovi += result.place;
+          partije++;
+          if (result.place === 1) p1++;
+          else if (result.place === 2) p2++;
+          else if (result.place === 3) p3++;
+          else muhe += result.muhe || 0;
+        }
+      }
+      return { id: p.id, bodovi, partije, p1, p2, p3, muhe, played: partije > 0 };
+    })
     .filter(p => p.played)
     .sort((a, b) => {
-      if (a.rez !== b.rez) return a.rez - b.rez;
+      // 1. Manji ukupni bodovi
+      if (a.bodovi !== b.bodovi) return a.bodovi - b.bodovi;
+      // 2. Manje drekova (4. mjesta)
+      const aDrek = 4 - a.p1 - a.p2 - a.p3;
+      const bDrek = 4 - b.p1 - b.p2 - b.p3;
+      if (aDrek !== bDrek) return aDrek - bDrek;
+      // 3. Manje muha
+      if (a.muhe !== b.muhe) return a.muhe - b.muhe;
+      // 4. Više 1. mjesta
+      if (a.p1 !== b.p1) return b.p1 - a.p1;
+      // 5. Više 2. mjesta
+      if (a.p2 !== b.p2) return b.p2 - a.p2;
+      // 6. Više 3. mjesta
+      if (a.p3 !== b.p3) return b.p3 - a.p3;
       return 0;
     });
 
-  // Dodijeli plasman (s mogućim izjednačenjem)
   const rankings = {};
   let rank = 1;
   for (let i = 0; i < standings.length; i++) {
-    if (i > 0 && standings[i].rez !== standings[i-1].rez) rank = i + 1;
+    if (i > 0) {
+      const prev = standings[i-1];
+      const curr = standings[i];
+      const prevDrek = 4 - prev.p1 - prev.p2 - prev.p3;
+      const currDrek = 4 - curr.p1 - curr.p2 - curr.p3;
+      if (curr.bodovi !== prev.bodovi || currDrek !== prevDrek ||
+          curr.muhe !== prev.muhe || curr.p1 !== prev.p1 ||
+          curr.p2 !== prev.p2 || curr.p3 !== prev.p3) {
+        rank = i + 1;
+      }
+    }
     rankings[standings[i].id] = rank;
   }
   return rankings;
