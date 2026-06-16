@@ -217,7 +217,7 @@ function computePlayerStats(playerId) {
 }
 
 function getTitle(stats, rank, totalPlayers) {
-  if (stats.partije === 0) return '';
+  if (stats.partije === 0 || stats.kola === 0) return '';
   if (rank === 1) return '🏆';
   if (rank === totalPlayers) return '💩';
   if (stats.rez !== null && stats.rez <= 1.5) return '👑';
@@ -338,12 +338,18 @@ function renderTable() {
   players.forEach((p, idx) => {
     const s = p.stats;
     const rank = idx + 1;
+    const nijeIgrao = s.kola === 0;
     let rezClass = '';
-    if (s.rez !== null) {
+    if (s.rez !== null && !nijeIgrao) {
       if (s.rez <= 2) rezClass = 'rez-good';
       else if (s.rez <= 3) rezClass = 'rez-mid';
       else rezClass = 'rez-bad';
     }
+
+    // Igrači koji nisu odigrali nijedno kolo idu na dno bez rang broja
+    const rankDisplay = nijeIgrao
+      ? `<span class="rank-badge rank-other" style="color:var(--text-dim);background:transparent;border:1px solid var(--border);">—</span>`
+      : `<span class="rank-badge rank-${rank <= 3 ? rank : 'other'}">${rank}</span>`;
 
     let histCells = '';
     state.rounds.forEach(round => {
@@ -377,7 +383,7 @@ function renderTable() {
     tr.dataset.playerId = p.id;
     tr.addEventListener('click', () => openPlayerModal(p.id));
     tr.innerHTML = `
-      <td class="col-rank sticky-col"><span class="rank-badge rank-${rank <= 3 ? rank : 'other'}">${rank}</span></td>
+      <td class="col-rank sticky-col">${rankDisplay}</td>
       <td class="col-name sticky-col2">
         <div class="player-name-cell"><span>${escHtml(p.name)}${saintIcon}</span></div>
       </td>
@@ -385,9 +391,9 @@ function renderTable() {
       <td class="col-num">${s.kola}</td>
       <td class="col-num" style="color:var(--ghost-red)">${s.propustena > 0 ? s.propustena : '—'}</td>
       <td class="col-num">${s.partije}</td>
-      <td class="col-num" title="Plasmani po kolima">${s.koloBodovi}</td>
+      <td class="col-num" title="Plasmani po kolima">${nijeIgrao ? '—' : s.koloBodovi}</td>
       <td class="col-num">${kaznaStr}</td>
-      <td class="col-rez ${rezClass}">${s.rez !== null ? s.rez.toFixed(2) : '—'}</td>
+      <td class="col-rez ${rezClass}">${s.rez !== null && !nijeIgrao ? s.rez.toFixed(2) : '—'}</td>
       <td class="col-num">${s.p1}</td>
       <td class="col-num">${s.p2}</td>
       <td class="col-num">${s.p3}</td>
