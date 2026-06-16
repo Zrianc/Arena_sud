@@ -86,31 +86,87 @@ function getPlayerPlaceInGame(playerId, game) {
   return null;
 }
 
+function computeRoundRez(playerId, round) {
+  // REZ igrača u jednom kolu = prosjek plasmana po partijama
+  let bodovi = 0, partije = 0, muhe = 0;
+  for (const game of round.games) {
+    if (!game) continue;
+    const result = getPlayerPlaceInGame(playerId, game);
+    if (result !== null) {
+      bodovi += result.place;
+      partije++;
+      if (result.place === 4) muhe += result.muhe || 0;
+    }
+  }
+  return partije > 0 ? { rez: bodovi / partije, partije, muhe, played: true } : { played: false };
+}
+
+function getRoundRankings(round) {
+  // Rangiraj sve igrače po REZ-u tog kola, vrati plasman (1,2,3...)
+  const standings = state.players
+    .map(p => ({ id: p.id, ...computeRoundRez(p.id, round) }))
+    .filter(p => p.played)
+    .sort((a, b) => {
+      if (a.rez !== b.rez) return a.rez - b.rez;
+      return 0;
+    });
+
+  // Dodijeli plasman (s mogućim izjednačenjem)
+  const rankings = {};
+  let rank = 1;
+  for (let i = 0; i < standings.length; i++) {
+    if (i > 0 && standings[i].rez !== standings[i-1].rez) rank = i + 1;
+    rankings[standings[i].id] = rank;
+  }
+  return rankings;
+}
+
 function computePlayerStats(playerId) {
-  const s = { partije: 0, bodovi: 0, p1: 0, p2: 0, p3: 0, drekovi: 0, muhe: 0, kola: 0, propustena: 0, plasmani: [] };
+  const s = {
+    partije: 0, bodovi: 0,
+    p1: 0, p2: 0, p3: 0, drekovi: 0, muhe: 0,
+    kola: 0, propustena: 0, plasmani: [],
+    // Novi sustav — bodovi po kolu (plasman u kolu)
+    koloBodovi: 0, koloPlaymani: []
+  };
   const kolaSet = new Set();
+
   for (const round of state.rounds) {
+    // Partijski bodovi (za statistiku)
     let playedThisRound = false;
     for (const game of round.games) {
       if (!game) continue;
       const result = getPlayerPlaceInGame(playerId, game);
       if (result !== null) {
-        s.partije++; s.bodovi += result.place;
+        s.partije++;
+        s.bodovi += result.place;
         if (result.place === 1) s.p1++;
         else if (result.place === 2) s.p2++;
         else if (result.place === 3) s.p3++;
-        else { s.drekovi++; s.muhe += result.muhe; }
+        else { s.drekovi++; s.muhe += result.muhe || 0; }
         s.plasmani.push(result.place);
         playedThisRound = true;
       }
     }
-    if (playedThisRound) kolaSet.add(round.id);
+
+    if (playedThisRound) {
+      kolaSet.add(round.id);
+      // Plasman u kolu (novi sustav bodovanja)
+      const rankings = getRoundRankings(round);
+      const koloRank = rankings[playerId];
+      if (koloRank !== undefined) {
+        s.koloBodovi += koloRank;
+        s.koloPlaymani.push(koloRank);
+      }
+    }
   }
+
   s.kola = kolaSet.size;
   s.propustena = state.rounds.length - s.kola;
-  s.kazna = s.propustena;
-  const prosjek = s.partije > 0 ? s.bodovi / s.partije : 0;
-  s.rez = s.partije > 0 ? prosjek + s.kazna : null;
+  // Kazna za propuštena kola — broj igrača koji su bili + 1
+  s.kazna = s.propustena > 0 ? s.propustena * (state.players.length + 1) : 0;
+  // REZ = prosjek plasmana po kolima + kazna
+  s.rez = s.kola > 0 ? (s.koloBodovi / s.kola) + (s.propustena > 0 ? s.propustena : 0) : null;
   const totalPossible = state.rounds.length * 4;
   s.pct = totalPossible > 0 ? Math.round((s.partije / totalPossible) * 100) : 0;
   return s;
@@ -261,7 +317,7 @@ function renderTable() {
     });
 
     const kaznaStr = s.kazna > 0
-      ? `<span style="color:var(--ghost-red);">+${s.kazna.toFixed(2)}</span>`
+      ? `<span style="color:var(--ghost-red);">+${s.kazna.toFixed(0)}</span>`
       : `<span style="color:var(--text-dim);">—</span>`;
 
     const streak = computeDrekStreak(p.id);
@@ -279,7 +335,7 @@ function renderTable() {
       <td class="col-num">${s.kola}</td>
       <td class="col-num" style="color:var(--ghost-red)">${s.propustena > 0 ? s.propustena : '—'}</td>
       <td class="col-num">${s.partije}</td>
-      <td class="col-num">${s.bodovi}</td>
+      <td class="col-num" title="Plasmani po kolima">${s.koloBodovi}</td>
       <td class="col-num">${kaznaStr}</td>
       <td class="col-rez ${rezClass}">${s.rez !== null ? s.rez.toFixed(2) : '—'}</td>
       <td class="col-num">${s.p1}</td>
