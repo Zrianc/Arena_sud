@@ -309,17 +309,22 @@ function renderTable() {
 
     let histCells = '';
     state.rounds.forEach(round => {
-      let place = null;
-      for (const game of round.games) {
-        if (!game) continue;
-        const r = getPlayerPlaceInGame(p.id, game);
-        if (r) { place = r.place; break; }
+      // Koristi plasman u kolu (novi sustav), ne plasman u partiji
+      const rankings = getRoundRankings(round);
+      const koloRank = rankings[p.id];
+      const totalInRound = Object.keys(rankings).length;
+
+      if (koloRank === undefined) {
+        histCells += `<td class="hist-cell hist-empty" title="Nije došao">&#129340;</td>`;
+      } else if (koloRank === 1) {
+        histCells += `<td class="hist-cell hist-1">${koloRank}</td>`;
+      } else if (koloRank === totalInRound) {
+        histCells += `<td class="hist-cell hist-drek">&#128169;</td>`;
+      } else if (koloRank === 2) {
+        histCells += `<td class="hist-cell hist-2">${koloRank}</td>`;
+      } else {
+        histCells += `<td class="hist-cell hist-3">${koloRank}</td>`;
       }
-      if (place === 1) histCells += `<td class="hist-cell hist-1">1</td>`;
-      else if (place === 2) histCells += `<td class="hist-cell hist-2">2</td>`;
-      else if (place === 3) histCells += `<td class="hist-cell hist-3">3</td>`;
-      else if (place === 4) histCells += `<td class="hist-cell hist-drek">&#128169;</td>`;
-      else histCells += `<td class="hist-cell hist-empty" title="Nije došao">&#129340;</td>`;
     });
 
     const kaznaStr = s.kazna > 0
