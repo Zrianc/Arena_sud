@@ -163,10 +163,16 @@ function computePlayerStats(playerId) {
 
   s.kola = kolaSet.size;
   s.propustena = state.rounds.length - s.kola;
-  // Kazna za propuštena kola — broj igrača koji su bili + 1
-  s.kazna = s.propustena > 0 ? s.propustena * (state.players.length + 1) : 0;
+  s.kazna = s.propustena;
   // REZ = prosjek plasmana po kolima + kazna
-  s.rez = s.kola > 0 ? (s.koloBodovi / s.kola) + (s.propustena > 0 ? s.propustena : 0) : null;
+  // Ako nije igrao nijedno kolo, REZ = samo kazna
+  if (s.kola > 0) {
+    s.rez = (s.koloBodovi / s.kola) + s.kazna;
+  } else if (s.propustena > 0) {
+    s.rez = s.kazna; // samo kazna, nije igrao ništa
+  } else {
+    s.rez = null;
+  }
   const totalPossible = state.rounds.length * 4;
   s.pct = totalPossible > 0 ? Math.round((s.partije / totalPossible) * 100) : 0;
   return s;
