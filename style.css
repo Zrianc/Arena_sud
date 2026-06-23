@@ -916,3 +916,10 @@ select.form-input {
   transition: opacity 0.2s;
 }
 .league-logo-small:hover { opacity: 1; }
+
+
+/* ===== ONK-BAK ARENA THEME ===== */
+:root{--pac-yellow:#f5d21f;--bg-main:#050505;--bg-card:#111;}
+body::before{content:"ONK-BAK";position:fixed;right:20px;bottom:20px;font-family:var(--font-display);font-size:40px;color:rgba(255,215,0,.08);z-index:-1;}
+.site-header{background:linear-gradient(90deg,#000,#151000,#000)!important;}
+.card,.table-wrap{box-shadow:0 0 25px rgba(255,215,0,.18)!important;}

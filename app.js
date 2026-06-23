@@ -241,7 +241,7 @@ function sortedPlayers() {
 // =====================
 // ADMIN AUTH
 // =====================
-const ADMIN_PIN = 'CKRS2026';
+const ADMIN_PIN = 'GOJA';
 let isAdmin = false;
 
 function setAdminMode(active) {
