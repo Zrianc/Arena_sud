@@ -101,61 +101,41 @@ function computeRoundRez(playerId, round) {
   return partije > 0 ? { rez: bodovi / partije, partije, muhe, played: true } : { played: false };
 }
 
-function getRoundRankings(round) {
-  // Skupi pozicije — par/trio igrača koji dijele poziciju dobivaju isti plasman
-  const pozicijeMap = new Map(); // key = sorted player IDs, value = stats
+// Propušteno kolo = kao 4 dreka (4 partije × 4 boda)
+const KAZNA_PO_KOLU = 16;
 
+function getRoundRankings(round) {
+  // Poredak u kolu po igraču: zbroj bodova iz partija tog kola + tie-breakeri
+  const stats = {};
   for (const game of round.games) {
     if (!game) continue;
     const g = normalizeGame(game);
     for (const pos of g.positions) {
-      const key = [...pos.players].sort().join(',');
-      if (!pozicijeMap.has(key)) {
-        pozicijeMap.set(key, { players: pos.players, bodovi: 0, partije: 0, p1: 0, p2: 0, p3: 0, muhe: 0 });
+      for (const pid of pos.players) {
+        if (!stats[pid]) stats[pid] = { id: pid, bodovi: 0, drekovi: 0, muhe: 0, p1: 0, p2: 0, p3: 0 };
+        const s = stats[pid];
+        s.bodovi += pos.place;
+        if (pos.place === 1) s.p1++;
+        else if (pos.place === 2) s.p2++;
+        else if (pos.place === 3) s.p3++;
+        else { s.drekovi++; s.muhe += pos.muhe || 0; }
       }
-      const s = pozicijeMap.get(key);
-      s.bodovi += pos.place;
-      s.partije++;
-      if (pos.place === 1) s.p1++;
-      else if (pos.place === 2) s.p2++;
-      else if (pos.place === 3) s.p3++;
-      else s.muhe += pos.muhe || 0;
     }
   }
 
-  const standings = [...pozicijeMap.values()]
-    .sort((a, b) => {
-      if (a.bodovi !== b.bodovi) return a.bodovi - b.bodovi;
-      const aDrek = a.partije - a.p1 - a.p2 - a.p3;
-      const bDrek = b.partije - b.p1 - b.p2 - b.p3;
-      if (aDrek !== bDrek) return aDrek - bDrek;
-      if (a.muhe !== b.muhe) return a.muhe - b.muhe;
-      if (a.p1 !== b.p1) return b.p1 - a.p1;
-      if (a.p2 !== b.p2) return b.p2 - a.p2;
-      if (a.p3 !== b.p3) return b.p3 - a.p3;
-      return 0;
-    });
-
-  // Dodijeli plasman svakom igraču
+  // Kao u Goji: sort po bodovima, pa drekovima, pa muhama; gusti poredak (1, 2, 2, 3...)
+  const standings = Object.values(stats).sort((a, b) => {
+    if (a.bodovi !== b.bodovi) return a.bodovi - b.bodovi;
+    if (a.drekovi !== b.drekovi) return a.drekovi - b.drekovi;
+    return a.muhe - b.muhe;
+  });
   const rankings = {};
-  let rank = 1;
-  for (let i = 0; i < standings.length; i++) {
-    if (i > 0) {
-      const prev = standings[i-1];
-      const curr = standings[i];
-      const prevDrek = prev.partije - prev.p1 - prev.p2 - prev.p3;
-      const currDrek = curr.partije - curr.p1 - curr.p2 - curr.p3;
-      if (curr.bodovi !== prev.bodovi || currDrek !== prevDrek ||
-          curr.muhe !== prev.muhe || curr.p1 !== prev.p1 ||
-          curr.p2 !== prev.p2 || curr.p3 !== prev.p3) {
-        rank = i + 1;
-      }
-    }
-    // Svi igrači u ovoj poziciji dobivaju isti rank
-    for (const playerId of standings[i].players) {
-      rankings[playerId] = rank;
-    }
-  }
+  let currentRank = 0, prevKey = null;
+  standings.forEach(s => {
+    const key = `${s.bodovi}|${s.drekovi}|${s.muhe}`;
+    if (key !== prevKey) { currentRank++; prevKey = key; }
+    rankings[s.id] = currentRank;
+  });
   return rankings;
 }
 
@@ -201,16 +181,9 @@ function computePlayerStats(playerId) {
 
   s.kola = kolaSet.size;
   s.propustena = state.rounds.length - s.kola;
-  s.kazna = s.propustena;
-  // REZ = prosjek plasmana po kolima + kazna
-  // Ako nije igrao nijedno kolo, REZ = samo kazna
-  if (s.kola > 0) {
-    s.rez = (s.koloBodovi / s.kola) + s.kazna;
-  } else if (s.propustena > 0) {
-    s.rez = s.kazna; // samo kazna, nije igrao ništa
-  } else {
-    s.rez = null;
-  }
+  s.kazna = s.propustena * KAZNA_PO_KOLU;
+  // REZ = ukupni zbroj bodova iz svih partija (1/2/3/4) + kazna za propuštena kola
+  s.rez = s.kola > 0 ? s.bodovi + s.kazna : null;
   const totalPossible = state.rounds.length * 4;
   s.pct = totalPossible > 0 ? Math.round((s.partije / totalPossible) * 100) : 0;
   return s;
@@ -231,9 +204,13 @@ function sortedPlayers() {
       if (as.partije === 0 && bs.partije === 0) return 0;
       if (as.partije === 0) return 1;
       if (bs.partije === 0) return -1;
+      // Kao u Goji: manji REZ, pa manje drekova, pa manje muha, pa više 1./2./3. mjesta
       if (as.rez !== bs.rez) return as.rez - bs.rez;
-      if (as.p1 !== bs.p1) return bs.p1 - as.p1;
       if (as.drekovi !== bs.drekovi) return as.drekovi - bs.drekovi;
+      if (as.muhe !== bs.muhe) return as.muhe - bs.muhe;
+      if (as.p1 !== bs.p1) return bs.p1 - as.p1;
+      if (as.p2 !== bs.p2) return bs.p2 - as.p2;
+      if (as.p3 !== bs.p3) return bs.p3 - as.p3;
       return bs.partije - as.partije;
     });
 }
@@ -341,8 +318,9 @@ function renderTable() {
     const nijeIgrao = s.kola === 0;
     let rezClass = '';
     if (s.rez !== null && !nijeIgrao) {
-      if (s.rez <= 2) rezClass = 'rez-good';
-      else if (s.rez <= 3) rezClass = 'rez-mid';
+      const avg = s.rez / Math.max(1, state.rounds.length * 4); // prosjek po partiji (s kaznom)
+      if (avg <= 2) rezClass = 'rez-good';
+      else if (avg <= 3) rezClass = 'rez-mid';
       else rezClass = 'rez-bad';
     }
 
@@ -391,9 +369,9 @@ function renderTable() {
       <td class="col-num">${s.kola}</td>
       <td class="col-num" style="color:var(--ghost-red)">${s.propustena > 0 ? s.propustena : '—'}</td>
       <td class="col-num">${s.partije}</td>
-      <td class="col-num" title="Plasmani po kolima">${nijeIgrao ? '—' : s.koloBodovi}</td>
+      <td class="col-num" title="Ukupni bodovi iz partija">${nijeIgrao ? '—' : s.bodovi}</td>
       <td class="col-num">${kaznaStr}</td>
-      <td class="col-rez ${rezClass}">${s.rez !== null && !nijeIgrao ? s.rez.toFixed(2) : '—'}</td>
+      <td class="col-rez ${rezClass}">${s.rez !== null && !nijeIgrao ? s.rez : '—'}</td>
       <td class="col-num">${s.p1}</td>
       <td class="col-num">${s.p2}</td>
       <td class="col-num">${s.p3}</td>
@@ -566,17 +544,23 @@ function renderKola() {
       const bodovi = row.plasmani.filter(p => p !== null).reduce((a, b) => a + b, 0);
       const partije = row.plasmani.filter(p => p !== null).length;
       const rez = partije > 0 ? bodovi / partije : null;
-      return { ...row, bodovi, partije, rez };
+      const drekovi = row.plasmani.filter(p => p === 4).length;
+      return { ...row, bodovi, partije, rez, drekovi };
     }).sort((a, b) => {
       if (a.rez === null && b.rez === null) return 0;
       if (a.rez === null) return 1;
       if (b.rez === null) return -1;
-      return a.rez - b.rez;
+      if (a.rez !== b.rez) return a.rez - b.rez;
+      if (a.drekovi !== b.drekovi) return a.drekovi - b.drekovi;
+      return a.muhe - b.muhe;
     });
 
     let rows = '';
+    let currentRank = 0, prevKey = null;
     rows_data.forEach((row, idx) => {
-      const rank = idx + 1;
+      const key = row.rez === null ? `none-${idx}` : `${row.rez}|${row.drekovi}|${row.muhe}`;
+      if (key !== prevKey) { currentRank++; prevKey = key; }
+      const rank = currentRank;
       const rezClass = row.rez !== null ? (row.rez <= 2 ? 'rez-good' : row.rez <= 3 ? 'rez-mid' : 'rez-bad') : '';
 
       // Ime(na) igrača
@@ -817,7 +801,7 @@ function renderPlayers() {
     div.className = 'player-item';
     div.innerHTML = `
       <span class="player-item-name">${escHtml(p.name)}</span>
-      <span class="player-item-stats">REZ: ${s.rez !== null ? s.rez.toFixed(2) : '—'} · ${s.partije} partija</span>
+      <span class="player-item-stats">REZ: ${s.rez !== null ? s.rez : '—'} · ${s.partije} partija</span>
       <button class="btn btn-sm btn-danger" onclick="removePlayer('${p.id}')">✕</button>`;
     list.appendChild(div);
   });
@@ -835,7 +819,8 @@ function openPlayerModal(playerId) {
   const p = state.players.find(x => x.id === playerId);
   if (!p) return;
   const s = computePlayerStats(playerId);
-  const rezClass = s.rez !== null ? (s.rez <= 2 ? 'rez-good' : s.rez <= 3 ? 'rez-mid' : 'rez-bad') : '';
+  const avgP = s.rez !== null ? s.rez / Math.max(1, state.rounds.length * 4) : null;
+  const rezClass = avgP !== null ? (avgP <= 2 ? 'rez-good' : avgP <= 3 ? 'rez-mid' : 'rez-bad') : '';
   const best = s.plasmani.length > 0 ? Math.min(...s.plasmani) : null;
   const worst = s.plasmani.length > 0 ? Math.max(...s.plasmani) : null;
   const bestStr = best === 1 ? '🥇 1.' : best === 2 ? '🥈 2.' : best === 3 ? '🥉 3.' : best === 4 ? '💩' : '—';
@@ -843,10 +828,10 @@ function openPlayerModal(playerId) {
   document.getElementById('playerModalContent').innerHTML = `
     <div class="player-modal-header">
       <span class="player-modal-name">${escHtml(p.name)}</span>
-      <span style="margin-left:auto;font-size:1.5rem">${getTitle(s)}</span>
+      <span style="margin-left:auto;font-size:1.5rem"></span>
     </div>
     <div style="text-align:center;margin-bottom:16px;">
-      <span class="rez-big ${rezClass}">${s.rez !== null ? s.rez.toFixed(2) : '—'}</span>
+      <span class="rez-big ${rezClass}">${s.rez !== null ? s.rez : '—'}</span>
       <span style="font-size:.7rem;color:var(--text-secondary);">REZ</span>
     </div>
     <div class="stat-grid">
