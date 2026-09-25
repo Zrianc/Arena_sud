@@ -408,29 +408,16 @@ function renderTable() {
 }
 
 function computeDrekStreak(playerId) {
-  // Streak po kolu — ako je igrač bio ZADNJI po REZ-u u kolu = 1 drek
+  // Streak po kolu — drek = zadnji plasman u kolu, ISTO kao 💩 u stupcima K1, K2...
+  // (koristi getRoundRankings s istim tie-breakerima: bodovi, drekovi, muhe, 1./2./3. mjesta)
   let streak = 0;
   for (const round of state.rounds) {
-    // Izračunaj REZ svakog igrača za ovo kolo
-    const roundStats = state.players.map(p => {
-      let bodovi = 0, partije = 0;
-      for (const game of round.games) {
-        if (!game) continue;
-        const result = getPlayerPlaceInGame(p.id, game);
-        if (result) { bodovi += result.place; partije++; }
-      }
-      return { id: p.id, rez: partije > 0 ? bodovi / partije : null };
-    }).filter(p => p.rez !== null); // samo koji su igrali
+    const rankings = getRoundRankings(round);
+    const koloRank = rankings[playerId];
+    if (koloRank === undefined) continue; // nije igrao, ne broji ni za ni protiv
 
-    if (roundStats.length === 0) continue;
-
-    // Je li ovaj igrač igrao u ovom kolu?
-    const playerStat = roundStats.find(p => p.id === playerId);
-    if (!playerStat) continue; // nije igrao, ne broji ni za ni protiv
-
-    // Je li zadnji (najveći REZ)?
-    const maxRez = Math.max(...roundStats.map(p => p.rez));
-    const isLast = playerStat.rez === maxRez;
+    const lastRank = Math.max(...Object.values(rankings));
+    const isLast = koloRank === lastRank && koloRank !== 1;
 
     if (isLast) streak++;
     else streak = 0;
